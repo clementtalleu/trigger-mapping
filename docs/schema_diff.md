@@ -16,3 +16,5 @@ Based on your bundle's configuration, this command will:
 * If `migrations` is set to `true` in your configuration, it will also automatically generate a new Doctrine migration file to apply these new triggers to your database.
 
 > **Important Note:** This command only creates the *scaffolding* for your triggers. It generates the files with a `TODO` placeholder inside. You are still responsible for the most important part: writing the actual SQL logic within the generated files to meet your application's needs. The command does not apply the triggers directly to the database; you must run the generated migration for that or triggers:schema:update then.
+> 
+> Furthermore, if you store your SQL logic in a PHP class, you will need to update your attribute with the correct path to your file in the className property #[Trigger(className:< your FQCN >)].
