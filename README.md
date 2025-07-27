@@ -213,3 +213,5 @@ This command, powered by the Symfony MakerBundle, is your go-to tool for creatin
 ```
 bin/console make:trigger
 ```
+
+Dedicated documentation [here](https://github.com/clementtalleu/trigger-mapping/blob/main/docs/make_trigger.md)
