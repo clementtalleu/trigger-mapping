@@ -18,7 +18,7 @@ use Talleu\TriggerMapping\Model\ResolvedTrigger;
 final class TriggersSchemaValidateCommand extends Command
 {
     public function __construct(
-        private readonly TriggersMappingInterface $triggersMapping,
+        private readonly TriggersMappingInterface     $triggersMapping,
         private readonly TriggersDbExtractorInterface $triggersDbExtractor,
     ) {
         parent::__construct();
@@ -83,7 +83,7 @@ final class TriggersSchemaValidateCommand extends Command
             // Suggest mapping:update
             $io->newLine();
             $io->info('To automatically create these missing mappings, you can run:');
-            $io->comment('php bin/console triggers:mapping:update --apply');
+            $io->comment('php bin/console triggers:mapping:update --apply --create-files');
         }
 
         if (!empty($mismatchedParams)) {

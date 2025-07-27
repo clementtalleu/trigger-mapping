@@ -24,8 +24,7 @@ final readonly class MappingCreator implements MappingCreatorInterface
         string          $entityFqcn,
         ?string         $triggerClassFqcn = null,
         ?string         $onTable = null
-    ): void
-    {
+    ): void {
         $entityPath = $this->getPathOfClass($entityFqcn);
         $manipulator = $this->createClassManipulator($entityPath);
 

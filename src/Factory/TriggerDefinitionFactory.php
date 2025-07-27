@@ -10,10 +10,10 @@ use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Talleu\TriggerMapping\Storage\Storage;
 use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 
-final class TriggerDefinitionFactory implements TriggerDefinitionFactoryInterface
+final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactoryInterface
 {
     public function __construct(
-        private readonly StorageResolverInterface $storageResolver,
+        private StorageResolverInterface $storageResolver,
     ) {
     }
 

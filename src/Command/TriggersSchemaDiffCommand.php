@@ -11,10 +11,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractor;
 use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractorInterface;
 use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
-use Talleu\TriggerMapping\Metadata\TriggersMapping;
 use Talleu\TriggerMapping\Metadata\TriggersMappingInterface;
 use Talleu\TriggerMapping\Storage\Storage;
 
@@ -87,7 +85,7 @@ final class TriggersSchemaDiffCommand extends Command
             $io->newLine();
             $io->text('Applying changes and creating files...');
 
-            $this->triggerCreator->create(resolvedTriggers: $triggersToCreate, createMigrations: null, io: $io);
+            $this->triggerCreator->create(resolvedTriggers: $triggersToCreate, io: $io);
 
             $io->success('Trigger files created successfully.');
         } else {

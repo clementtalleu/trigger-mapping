@@ -13,10 +13,8 @@ use Symfony\Component\Console\Style\StyleInterface;
 use Talleu\TriggerMapping\Exception\TriggerClassAlreadyExistsException;
 use Talleu\TriggerMapping\Exception\TriggerSqlFileAlreadyExistsException;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
-use Talleu\TriggerMapping\Platform\DatabasePlatformResolver;
 use Talleu\TriggerMapping\Platform\DatabasePlatformResolverInterface;
 use Talleu\TriggerMapping\Storage\Storage;
-use Talleu\TriggerMapping\Storage\StorageResolver;
 use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 
 /**

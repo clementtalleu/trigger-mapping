@@ -29,7 +29,7 @@ final class TriggersMappingUpdateCommand extends Command
         private readonly StorageResolverInterface     $storageResolver,
         private readonly MappingCreatorInterface      $mappingCreator,
         private readonly DoctrineHelper               $doctrineHelper,
-        private readonly TriggerCreatorInterface $triggerCreator,
+        private readonly TriggerCreatorInterface      $triggerCreator,
         private readonly Generator                    $generator,
     ) {
         parent::__construct();
@@ -89,9 +89,9 @@ final class TriggersMappingUpdateCommand extends Command
             $dbTriggerMissing = $dbTriggers[$missingTriggerKey];
 
             $entityFqcn = $this->findEntityFqcnForTable($dbTriggerMissing['table']);
-            $onTable = null;
 
             // No entity found, check if the trigger is on a join table without doctrine entity representation
+            $onTable = null;
             if (null === $entityFqcn) {
                 $entityFqcn = $this->findEntityFqcnForJoinTable($dbTriggerMissing['table']);
                 $onTable = $dbTriggerMissing['table'];
