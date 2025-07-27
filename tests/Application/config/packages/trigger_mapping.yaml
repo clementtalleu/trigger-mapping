@@ -1,0 +1,5 @@
+trigger_mapping:
+  storage:
+    type: php
+    namespace: Application
+  migrations: false

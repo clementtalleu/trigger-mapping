@@ -1,0 +1,5 @@
+The <info>%command.name%</info> command generates a new trigger as PHP class or SQL file.
+
+<info>php %command.full_name% AwesomeTrigger</info>
+
+If the argument is missing, the command will ask for the entity name (and other trigger infos) interactively.

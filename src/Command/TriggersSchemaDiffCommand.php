@@ -1,0 +1,102 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Talleu\TriggerMapping\Command;
+
+use Symfony\Bundle\MakerBundle\Generator;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractor;
+use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractorInterface;
+use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
+use Talleu\TriggerMapping\Metadata\TriggersMapping;
+use Talleu\TriggerMapping\Metadata\TriggersMappingInterface;
+use Talleu\TriggerMapping\Storage\Storage;
+
+#[AsCommand(
+    name: 'triggers:schema:diff',
+    description: 'Compare entity mappings with the database schema (and create missing trigger files).',
+    aliases: ['t:s:d']
+)]
+final class TriggersSchemaDiffCommand extends Command
+{
+    public function __construct(
+        private readonly TriggersMappingInterface     $triggersMapping,
+        private readonly TriggersDbExtractorInterface $triggersDbExtractor,
+        private readonly TriggerCreatorInterface      $triggerCreator,
+        private readonly Generator                    $generator,
+    ) {
+        parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption(
+            'apply',
+            'a',
+            InputOption::VALUE_NONE,
+            'Create the SQL/PHP templates from the entity mapping.'
+        );
+    }
+
+    protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        $io = (new SymfonyStyle($input, $output));
+        $isApplyMode = $input->getOption('apply');
+
+        if ($isApplyMode) {
+            $io->note('Running in APPLY mode: Changes will be written to files.');
+        } else {
+            $io->note('Running in DRY-RUN mode. No files will be changed. Use the --apply option to execute changes.');
+        }
+
+        $entitiesTriggers = $this->triggersMapping->extractTriggerMapping();
+        $entitiesTriggersNames = array_keys($entitiesTriggers);
+        $dbTriggersNames = array_keys($this->triggersDbExtractor->listTriggers());
+        $missingTriggersKeysNames = array_diff($entitiesTriggersNames, $dbTriggersNames);
+
+        if (empty($missingTriggersKeysNames)) {
+            $io->success('All mapped triggers already exist in the database. Nothing to do.');
+
+            return Command::SUCCESS;
+        }
+
+        $io->section('The following triggers are mapped but missing from the database:');
+        $triggersToCreate = [];
+        foreach ($missingTriggersKeysNames as $missingTriggerName) {
+            $triggersToCreate[] = $entitiesTriggers[$missingTriggerName];
+        }
+
+        $listItems = [];
+        foreach ($triggersToCreate as $trigger) {
+            $storageType = $trigger->storage === Storage::PHP_CLASSES->value ? 'PHP Class' : 'SQL File(s)';
+            $listItems[] = sprintf(
+                'Trigger "<info>%s</info>" will be created (Storage: <comment>%s</comment>)',
+                $trigger->name,
+                $storageType
+            );
+        }
+        $io->listing($listItems);
+
+        if ($isApplyMode) {
+            $io->newLine();
+            $io->text('Applying changes and creating files...');
+
+            $this->triggerCreator->create(resolvedTriggers: $triggersToCreate, createMigrations: null, io: $io);
+
+            $io->success('Trigger files created successfully.');
+        } else {
+            $io->newLine();
+            $io->info('To create these files, re-run the command with the --apply option.');
+        }
+
+        $this->generator->writeChanges();
+
+        return Command::SUCCESS;
+    }
+}

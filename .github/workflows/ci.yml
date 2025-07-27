@@ -1,0 +1,84 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  unit_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: xdebug
+
+      - name: Install Dependencies
+        run: composer install --prefer-dist --no-progress
+
+  #      - name: Run Unit Tests
+  #        run: vendor/bin/phpunit --testsuite=unit
+
+  functional_tests:
+    runs-on: ubuntu-latest
+    needs: unit_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: mysql
+            database_url: 'mysql://root:root_password@127.0.0.1:3306/test_db?serverVersion=8.0'
+            testsuite: 'mysql'
+          - platform: postgresql
+            database_url: 'postgresql://test_user:test_password@127.0.0.1:5432/test_db?serverVersion=15'
+            testsuite: 'postgresql'
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 'root_password'
+          MYSQL_DATABASE: 'test_db'
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: 'test_db'
+          POSTGRES_USER: 'test_user'
+          POSTGRES_PASSWORD: 'test_password'
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: xdebug
+
+      - name: Install Dependencies
+        run: composer install --prefer-dist --no-progress
+
+      - name: Test cs-fixer
+        run: PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix src --dry-run --diff --no-ansi
+
+      - name: Run phpstan
+        run: vendor/bin/phpstan analyse src
+
+      - name: Run Functional Tests for ${{ matrix.platform }}
+        env:
+          DATABASE_URL: ${{ matrix.database_url }}
+        run: vendor/bin/phpunit --testsuite=${{ matrix.testsuite }}

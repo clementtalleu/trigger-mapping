@@ -1,0 +1,11 @@
+/var/
+/vendor/
+/fixtures/
+/coverage/
+test.php
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+/.phpunit.cache/
+Makefile
+coverage.xml
+composer.lock

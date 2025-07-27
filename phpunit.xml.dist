@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.1/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         cacheDirectory=".phpunit.cache"
+         executionOrder="depends,defects"
+         displayDetailsOnTestsThatTriggerWarnings="true"
+>
+    <php>
+        <env name="XDEBUG_MODE" value="coverage"/>
+        <env name="APP_ENV" value="test"/>
+        <env name="APP_DEBUG" value="1"/>
+        <env name="APP_SECRET" value="test_secret"/>
+
+        <env name="KERNEL_CLASS" value="Talleu\TriggerMapping\Tests\Application\Kernel"/>
+        <!--  Pour switcher de plateform       -->
+<!--        <env name="DATABASE_URL" value="mysql://test_user:test_password@127.0.0.1:3308/test_db?serverVersion=8.0"/>-->
+        <env name="DATABASE_URL" value="postgresql://test_user:test_password@127.0.0.1:5433/test_db?serverVersion=15"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="mysql">
+            <directory>tests/Functional/Mysql</directory>
+        </testsuite>
+        <testsuite name="postgresql">
+            <directory>tests/Functional/Postgresql</directory>
+        </testsuite>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+
+    <coverage>
+        <report>
+            <clover outputFile="coverage/clover.xml"/>
+        </report>
+    </coverage>
+
+    <source ignoreIndirectDeprecations="true" restrictNotices="true" restrictWarnings="true">
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+</phpunit>

@@ -1,0 +1,40 @@
+{
+  "name": "talleu/trigger-mapping",
+  "description": "A Symfony bundle to map SQL triggers",
+  "type": "symfony-bundle",
+  "autoload": {
+    "psr-4": {
+      "Talleu\\TriggerMapping\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Talleu\\TriggerMapping\\Tests\\": "tests/"
+    }
+  },
+  "require": {
+    "php": ">=8.2",
+    "symfony/console": "^6.0 || ^7.0",
+    "symfony/string": "^6.0 || ^7.0",
+    "symfony/dependency-injection": "^6.0 || ^7.0",
+    "symfony/config": "^6.0 || ^7.0",
+    "symfony/http-kernel": "^6.0 || ^7.0",
+    "doctrine/dbal": "^3.0 || ^4.0",
+    "doctrine/doctrine-bundle": "^2.7",
+    "doctrine/orm": "^2.16 || ^3.0"
+  },
+  "suggest": {
+    "doctrine/doctrine-migrations-bundle": "Required to automatically generate migrations for your triggers (‘migrations: true’ configuration)."
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^11.0",
+    "friendsofphp/php-cs-fixer": "^3.75",
+    "phpstan/phpstan": "^1.12",
+    "symfony/var-dumper": "^7.0",
+    "symfony/framework-bundle": "^7.2",
+    "symfony/test-pack": "^1.2",
+    "doctrine/doctrine-migrations-bundle": "^3.2",
+    "symfony/maker-bundle": "^1.50",
+    "symfony/yaml": "^7.3"
+  }
+}
