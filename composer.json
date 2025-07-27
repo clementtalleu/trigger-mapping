@@ -15,7 +15,6 @@
   "require": {
     "php": ">=8.2",
     "symfony/console": "^6.0 || ^7.0",
-    "symfony/string": "^6.0 || ^7.0",
     "symfony/dependency-injection": "^6.0 || ^7.0",
     "symfony/config": "^6.0 || ^7.0",
     "symfony/http-kernel": "^6.0 || ^7.0",
@@ -36,5 +35,6 @@
     "doctrine/doctrine-migrations-bundle": "^3.2",
     "symfony/maker-bundle": "^1.50",
     "symfony/yaml": "^7.3"
-  }
+  },
+  "license": "MIT"
 }
