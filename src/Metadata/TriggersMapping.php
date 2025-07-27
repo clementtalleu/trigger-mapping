@@ -10,11 +10,11 @@ use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Exception\NotAnEntityException;
 use Talleu\TriggerMapping\Factory\TriggerDefinitionFactory;
 
-final class TriggersMapping implements TriggersMappingInterface
+final readonly class TriggersMapping implements TriggersMappingInterface
 {
     public function __construct(
-        private readonly DependencyFactory $dependencyFactory,
-        private readonly TriggerDefinitionFactory $triggerDefinitionFactory,
+        private DependencyFactory        $dependencyFactory,
+        private TriggerDefinitionFactory $triggerDefinitionFactory,
     ) {
     }
 

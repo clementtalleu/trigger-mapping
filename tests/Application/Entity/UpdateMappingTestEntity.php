@@ -3,6 +3,7 @@
 namespace Talleu\TriggerMapping\Tests\Application\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Talleu\TriggerMapping\Attribute\Trigger;
 
 #[ORM\Entity]
 class UpdateMappingTestEntity

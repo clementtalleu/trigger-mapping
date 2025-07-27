@@ -72,6 +72,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         if (str_starts_with($namespace, 'App\\')) {
             $namespace = str_replace('App\\', '', $namespace);
         }
+
         $triggerClassNameDetails = $this->generator->createClassNameDetails($className, $namespace);
 
         $params = [

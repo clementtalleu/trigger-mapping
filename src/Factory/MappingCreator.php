@@ -10,9 +10,9 @@ use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Symfony\Bundle\MakerBundle\Util\ClassSourceManipulator;
 
-final class MappingCreator implements MappingCreatorInterface
+final readonly class MappingCreator implements MappingCreatorInterface
 {
-    public function __construct(private readonly FileManager $fileManager)
+    public function __construct(private FileManager $fileManager)
     {
     }
 
@@ -24,7 +24,8 @@ final class MappingCreator implements MappingCreatorInterface
         string          $entityFqcn,
         ?string         $triggerClassFqcn = null,
         ?string         $onTable = null
-    ): void {
+    ): void
+    {
         $entityPath = $this->getPathOfClass($entityFqcn);
         $manipulator = $this->createClassManipulator($entityPath);
 

@@ -7,11 +7,11 @@ namespace Talleu\TriggerMapping\DatabaseSchema;
 use Doctrine\Migrations\DependencyFactory;
 use Talleu\TriggerMapping\Platform\DatabasePlatformResolver;
 
-final class TriggersDbExtractor implements TriggersDbExtractorInterface
+final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
 {
     public function __construct(
-        private readonly DependencyFactory $dependencyFactory,
-        private readonly DatabasePlatformResolver $databasePlatformResolver,
+        private DependencyFactory        $dependencyFactory,
+        private DatabasePlatformResolver $databasePlatformResolver,
     ) {
     }
 
