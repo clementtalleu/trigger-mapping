@@ -130,20 +130,20 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
             }
 
             $scope = 'UNKNOWN';
-            if (str_contains($upperDefinition, 'FOR EACH ROW')) {
+            if (str_contains($upperDefinition, ' ROW ')) {
                 $scope = 'ROW';
-            } elseif (str_contains($upperDefinition, 'FOR EACH STATEMENT')) {
+            } elseif (str_contains($upperDefinition, ' STATEMENT ')) {
                 $scope = 'STATEMENT';
             }
 
             $events = [];
-            if (str_contains($upperDefinition, 'INSERT')) {
+            if (str_contains($upperDefinition, ' INSERT ')) {
                 $events[] = 'INSERT';
             }
-            if (str_contains($upperDefinition, 'UPDATE')) {
+            if (str_contains($upperDefinition, ' UPDATE ')) {
                 $events[] = 'UPDATE';
             }
-            if (str_contains($upperDefinition, 'DELETE')) {
+            if (str_contains($upperDefinition, ' DELETE ')) {
                 $events[] = 'DELETE';
             }
 
