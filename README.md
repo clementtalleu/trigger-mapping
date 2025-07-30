@@ -9,12 +9,14 @@ This makes your schema declarative, easy to read, and version-controlled alongsi
 namespace App\Entity;
 
 use Talleu\TriggerMapping\Attribute\Trigger;
+use App\Triggers\MyAwesomeTrigger;
 
 #[Trigger(
     name: 'trg_user_updated_at',
     timing: 'AFTER',
     on: ['INSERT', 'UPDATE'],
-    function: 'update_timestamp_func'
+    function: 'update_timestamp_func',
+    className: MyAwesomeTrigger::class
 )]
 class User
 {
