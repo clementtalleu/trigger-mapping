@@ -12,8 +12,7 @@ final class TriggersMappingUpdateTest extends AbstractTriggersMappingUpdateTestC
     {
         return <<<SQL
             CREATE TRIGGER {$triggerName}
-            {
-            } {$events} ON {$tableName}
+            {$when} {$events} ON {$tableName}
             FOR EACH ROW
             BEGIN
                 -- Dummy logic for test trigger
