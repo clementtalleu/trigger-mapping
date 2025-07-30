@@ -119,7 +119,7 @@ final class TriggersSchemaValidateCommand extends Command
      *       name: string,
      *       table: string,
      *       events: string[],
-     *       timing: string,
+     *       when: string,
      *       scope: string,
      *       content: string,
      *       function: ?string
@@ -157,10 +157,10 @@ final class TriggersSchemaValidateCommand extends Command
                 ];
             }
 
-            if ($mapping->timing !== $triggerData['timing']) {
-                $mismatch[$triggerName]['timing'] = [
-                    'expected' => $mapping->timing,
-                    'actual' => $triggerData['timing'],
+            if ($mapping->when !== $triggerData['when']) {
+                $mismatch[$triggerName]['when'] = [
+                    'expected' => $mapping->when,
+                    'actual' => $triggerData['when'],
                 ];
             }
 

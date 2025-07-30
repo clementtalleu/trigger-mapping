@@ -69,7 +69,7 @@ final class MakeTrigger extends AbstractMaker
         }
 
         $command
-            ->addArgument('timing', InputArgument::OPTIONAL, 'Trigger timing: "AFTER" or "BEFORE"')
+            ->addArgument('when', InputArgument::OPTIONAL, 'Trigger timing: "AFTER" or "BEFORE"')
             ->addArgument('storage', InputArgument::OPTIONAL, 'Storage for the logic: "php" or "sql"')
             ->addOption(
                 'migration',
@@ -114,10 +114,10 @@ final class MakeTrigger extends AbstractMaker
         }
 
         $allowedTimings = ['AFTER', 'BEFORE'];
-        $timing = trim(strtoupper($input->getArgument('timing')));
-        if (!in_array($timing, $allowedTimings)) {
+        $when = trim(strtoupper($input->getArgument('when')));
+        if (!in_array($when, $allowedTimings)) {
             $allowedTimingsString = implode(',', $allowedTimings);
-            throw new \InvalidArgumentException("{$input->getArgument('timing')} is not a valid timing, should be one of : $allowedTimingsString");
+            throw new \InvalidArgumentException("{$input->getArgument('when')} is not a valid timing, should be one of : $allowedTimingsString");
         }
 
         $allowedStorages = [Storage::PHP_CLASSES->value, Storage::SQL_FILES->value];
@@ -131,7 +131,7 @@ final class MakeTrigger extends AbstractMaker
             name: $input->getArgument('trigger-name'),
             table: $tableName,
             events: $events,
-            timing: $timing,
+            when: $when,
             scope: $scope,
             storage: $storage,
             functionName: $functionName

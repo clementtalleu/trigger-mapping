@@ -12,7 +12,7 @@ use Talleu\TriggerMapping\Tests\Functional\AbstractTriggerValidateSchemaTestCase
 
 final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestCase
 {
-    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $timing, string $events, string $functionName): string
+    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $when, string $events, string $functionName): string
     {
         $functionSql = <<<SQL
             CREATE OR REPLACE FUNCTION {$functionName}() RETURNS trigger AS $$
@@ -23,7 +23,7 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
             $$ LANGUAGE plpgsql;
         SQL;
 
-        $triggerSql = "CREATE TRIGGER {$triggerName} {$timing} {$events} ON {$tableName} FOR EACH ROW EXECUTE FUNCTION {$functionName}()";
+        $triggerSql = "CREATE TRIGGER {$triggerName} {$when} {$events} ON {$tableName} FOR EACH ROW EXECUTE FUNCTION {$functionName}()";
 
         return $functionSql . ';' . PHP_EOL . $triggerSql;
     }

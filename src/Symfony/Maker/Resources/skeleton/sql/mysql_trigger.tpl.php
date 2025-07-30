@@ -1,5 +1,5 @@
 CREATE TRIGGER <?= $trigger_name ?>
-    <?= $timing ?> <?= $events ?> ON <?= $table_name ?>
+    <?= $when ?> <?= $events ?> ON <?= $table_name ?>
     FOR EACH ROW
 BEGIN
     -- TODO: Add your SQL logic here

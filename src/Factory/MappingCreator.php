@@ -31,7 +31,7 @@ final readonly class MappingCreator implements MappingCreatorInterface
         $attributeArguments = [
             'name' => $resolvedTrigger->name,
             'on' => $resolvedTrigger->events,
-            'timing' => $resolvedTrigger->timing,
+            'when' => $resolvedTrigger->when,
             'scope' => $resolvedTrigger->scope,
         ];
 

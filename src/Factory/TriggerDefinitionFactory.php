@@ -34,7 +34,7 @@ final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactor
             name: $attribute->name,
             table: $metadata->getTableName(),
             events: $attribute->on,
-            timing: $attribute->timing,
+            when: $attribute->when,
             scope: $attribute->scope,
             storage: $storage,
             functionName: $attribute->function,

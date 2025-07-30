@@ -23,7 +23,7 @@ abstract class AbstractTriggersMappingUpdateTestCase extends KernelTestCase
     /**
      * @return string The SQL statement to create a trigger for the test.
      */
-    abstract protected function getCreateTriggerSql(string $triggerName, string $tableName, string $timing, string $events): string;
+    abstract protected function getCreateTriggerSql(string $triggerName, string $tableName, string $when, string $events): string;
 
     protected function setUp(): void
     {

@@ -24,7 +24,7 @@ final class MakeTriggerTest extends AbstractMakeTriggerTestCase
             'entity-class' => NoTriggerEntity::class,
             'trigger-name' => $triggerName,
             'on' => 'INSERT,UPDATE',
-            'timing' => 'AFTER',
+            'when' => 'AFTER',
             'storage' => 'sql',
             'scope' => 'ROW',
             'function-name' => $functionName,

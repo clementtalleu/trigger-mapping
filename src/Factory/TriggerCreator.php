@@ -77,7 +77,7 @@ final class TriggerCreator implements TriggerCreatorInterface
             'trigger_name' => $resolvedTrigger->name,
             'table_name' => $resolvedTrigger->table,
             'function_name' => $resolvedTrigger->function,
-            'timing' => $resolvedTrigger->timing,
+            'when' => $resolvedTrigger->when,
             'scope' => $resolvedTrigger->scope,
             'namespace' => $namespace,
             'class_name' => $className,
@@ -88,7 +88,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         if ($this->databasePlatformResolver->isPostgreSQL()) {
             $template = 'PostgresqlTrigger.tpl.php';
             $params['events'] = strtoupper(implode(' OR ', $resolvedTrigger->events));
-            $params['return_value'] = ($resolvedTrigger->timing === 'AFTER') ? 'NULL' : 'NEW';
+            $params['return_value'] = ($resolvedTrigger->when === 'AFTER') ? 'NULL' : 'NEW';
 
         } elseif ($this->databasePlatformResolver->isMySQL()) {
             if (count($resolvedTrigger->events) > 1) {
@@ -129,10 +129,10 @@ final class TriggerCreator implements TriggerCreatorInterface
                 'trigger_name' => $resolvedTrigger->name,
                 'table_name' => $resolvedTrigger->table,
                 'function_name' => $resolvedTrigger->function,
-                'timing' => $resolvedTrigger->timing,
+                'when' => $resolvedTrigger->when,
                 'scope' => $resolvedTrigger->scope,
                 'events' => strtoupper(implode(' OR ', $resolvedTrigger->events)),
-                'return_value' => ($resolvedTrigger->timing === 'AFTER') ? 'NULL' : 'NEW',
+                'return_value' => ($resolvedTrigger->when === 'AFTER') ? 'NULL' : 'NEW',
                 'content' => $resolvedTrigger->content,
                 'definition' => $resolvedTrigger->definition,
             ];
@@ -157,7 +157,7 @@ final class TriggerCreator implements TriggerCreatorInterface
             $params = [
                 'trigger_name' => $resolvedTrigger->name,
                 'table_name' => $resolvedTrigger->table,
-                'timing' => $resolvedTrigger->timing,
+                'when' => $resolvedTrigger->when,
                 'events' => strtoupper($resolvedTrigger->events[0]),
             ];
 
