@@ -84,8 +84,8 @@ trigger_mapping:
     directory: '%kernel.project_dir%/triggers'
 
     # The namespace for the generated PHP classes when using the 'php' storage type.
-    # Defaults to 'App\Trigger'.
-    namespace: 'App\Trigger'
+    # Defaults to 'App\Triggers'.
+    namespace: 'App\Triggers'
 
   # --- Migrations ---
   # Whether to automatically generate Doctrine migrations for your triggers.

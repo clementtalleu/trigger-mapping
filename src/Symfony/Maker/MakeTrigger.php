@@ -58,7 +58,11 @@ final class MakeTrigger extends AbstractMaker
             $command->addArgument('function-name', InputArgument::OPTIONAL, 'The name for the SQL function to be executed by the trigger (e.g. <fg=yellow>fn_update_contact_total_unread</>)');
         }
 
-        $command->addArgument('on', InputArgument::OPTIONAL, 'When the trigger should fire: "insert", "update", "delete" (comma-separated for multiple, only 1 for Mysql/MariaDB)');
+        if ($isPostgreSQL) {
+            $command->addArgument('on', InputArgument::OPTIONAL, 'When the trigger should fire: "insert", "update", "delete" (comma-separated for multiple e.g. <fg=yellow>insert,update</>)');
+        } else {
+            $command->addArgument('on', InputArgument::OPTIONAL, 'When the trigger should fire: "insert", "update", "delete" (only 1 for Mysql/MariaDB)');
+        }
 
         if ($isPostgreSQL) {
             $command->addArgument('scope', InputArgument::OPTIONAL, 'Trigger scope: "ROW" or "STATEMENT"');
