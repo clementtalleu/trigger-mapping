@@ -15,7 +15,7 @@ use App\Triggers\MyAwesomeTrigger;
     name: 'trg_user_updated_at',
     timing: 'AFTER',
     on: ['INSERT', 'UPDATE'],
-    function: 'update_timestamp_func',
+    function: 'fn_update_timestamp_func',
     className: MyAwesomeTrigger::class
 )]
 class User
