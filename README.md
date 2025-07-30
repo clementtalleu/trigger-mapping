@@ -13,7 +13,7 @@ use App\Triggers\MyAwesomeTrigger;
 
 #[Trigger(
     name: 'trg_user_updated_at',
-    timing: 'AFTER',
+    when: 'AFTER',
     on: ['INSERT', 'UPDATE'],
     function: 'fn_update_timestamp_func',
     className: MyAwesomeTrigger::class
@@ -179,7 +179,7 @@ Dedicated documentation [here](https://github.com/clementtalleu/trigger-mapping/
 bin/console triggers:mapping:update --apply --create-files
 ```
 
-This command inspects all triggers present in your database that are not yet mapped in your entities. For each one, it finds the appropriate Doctrine entity class and adds the correct `#[Trigger]` attribute with all its parameters (`name`, `on`, `timing`, etc.) filled in from the schema.
+This command inspects all triggers present in your database that are not yet mapped in your entities. For each one, it finds the appropriate Doctrine entity class and adds the correct `#[Trigger]` attribute with all its parameters (`name`, `on`, `when`, etc.) filled in from the schema.
 
 Dedicated documentation [here](https://github.com/clementtalleu/trigger-mapping/blob/main/docs/mapping_update.md)
 

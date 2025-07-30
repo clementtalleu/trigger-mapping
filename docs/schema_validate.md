@@ -10,7 +10,7 @@ The validator performs a comprehensive comparison between the triggers defined v
 
 1.  **Missing in Database:** Triggers that are mapped in your code but do not exist in the database.
 2.  **Missing in Mapping:** Triggers that exist in the database but are not mapped in your code.
-3.  **Mismatched Parameters:** Triggers that exist in both places but have different parameters (e.g., a different `timing`, `scope`, or target `function`).
+3.  **Mismatched Parameters:** Triggers that exist in both places but have different parameters (e.g., a different `when`, `scope`, or target `function`).
 
 This command is purely **informational**; it will never modify your code or your database schema. Its purpose is to provide a clear and detailed report of any inconsistencies.
 
@@ -24,4 +24,4 @@ php bin/console triggers:schema:validate --entity='App\Entity\User'
 
 This command is ideal for integration into your CI pipeline. By running it as part of your test suite, you can automatically prevent schema drifts from being merged, ensuring that your database and your application code always remain synchronized.
 
-> **Note:** While the command performs a thorough check of the trigger's metadata (name, table, events, timing, scope, and associated function), it does not perform a deep comparison of the SQL logic inside the trigger body or function. This level of validation already provides a very high degree of confidence in your schema's integrity.
+> **Note:** While the command performs a thorough check of the trigger's metadata (name, table, events, when, scope, and associated function), it does not perform a deep comparison of the SQL logic inside the trigger body or function. This level of validation already provides a very high degree of confidence in your schema's integrity.

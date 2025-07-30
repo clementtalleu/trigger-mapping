@@ -10,7 +10,7 @@ class <?php echo $class_name; ?> implements MySQLTriggerInterface
     public static function getTrigger(): string
     {
         return <<<SQL
-            CREATE TRIGGER <?= $trigger_name ?> <?= $timing ?> <?= $events ?> ON <?= $table_name ?> FOR EACH ROW
+            CREATE TRIGGER <?= $trigger_name ?> <?= $when ?> <?= $events ?> ON <?= $table_name ?> FOR EACH ROW
     <?php if (!empty($content)): ?>
         <?= '            ' . str_replace("\n", "\n            ", trim($content)) ?>
         

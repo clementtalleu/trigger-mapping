@@ -4,7 +4,7 @@
 bin/console triggers:mapping:update --apply --create-files
 ```
 
-This command inspects all triggers present in your database that are not yet mapped in your entities. For each one, it finds the appropriate Doctrine entity class and adds the correct `#[Trigger]` attribute with all its parameters (`name`, `on`, `timing`, etc.) filled in from the schema.
+This command inspects all triggers present in your database that are not yet mapped in your entities. For each one, it finds the appropriate Doctrine entity class and adds the correct `#[Trigger]` attribute with all its parameters (`name`, `on`, `when`, etc.) filled in from the schema.
 
 #### Join Table Handling
 

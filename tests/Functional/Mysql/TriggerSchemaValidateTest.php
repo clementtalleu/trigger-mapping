@@ -12,11 +12,11 @@ use Talleu\TriggerMapping\Tests\Functional\AbstractTriggerValidateSchemaTestCase
 
 final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestCase
 {
-    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $timing, string $events): string
+    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $when, string $events): string
     {
         return <<<SQL
             CREATE TRIGGER {$triggerName}
-            {$timing} {$events} ON {$tableName}
+            {$when} {$events} ON {$tableName}
             FOR EACH ROW
             BEGIN
                 -- Dummy logic for test trigger

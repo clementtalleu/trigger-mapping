@@ -11,7 +11,7 @@ interface TriggersDbExtractorInterface
      * name: string,
      * table: string,
      * events: string[],
-     * timing: string,
+     * when: string,
      * scope: string,
      * content: string,
      * definition: ?string,

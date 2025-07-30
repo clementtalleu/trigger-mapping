@@ -13,7 +13,7 @@ use Talleu\TriggerMapping\Tests\Application\Triggers\PostgresqlTriggerClass;
     name: "trg_update_schema_test",
     function: "fn_update_schema_test",
     on: ["UPDATE"],
-    timing: "BEFORE",
+    when: "BEFORE",
     scope: "ROW",
     className: PostgresqlTriggerClass::class
 )]

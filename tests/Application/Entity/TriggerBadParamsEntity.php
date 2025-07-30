@@ -6,7 +6,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Talleu\TriggerMapping\Attribute\Trigger;
 
 #[ORM\Entity]
-#[Trigger(name: "bad_params_trigger", on: ["DELETE"], timing: "AFTER", scope: "ROW")]
+#[Trigger(name: "bad_params_trigger", on: ["DELETE"], when: "AFTER", scope: "ROW")]
 class TriggerBadParamsEntity
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]

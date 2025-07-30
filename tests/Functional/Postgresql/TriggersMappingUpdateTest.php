@@ -8,7 +8,7 @@ use Talleu\TriggerMapping\Tests\Functional\AbstractTriggersMappingUpdateTestCase
 
 final class TriggersMappingUpdateTest extends AbstractTriggersMappingUpdateTestCase
 {
-    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $timing, string $events, ?string $functionName = null): string
+    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $when, string $events, ?string $functionName = null): string
     {
         $functionName = $functionName ?? 'dummy_test_func';
 
@@ -22,7 +22,7 @@ final class TriggersMappingUpdateTest extends AbstractTriggersMappingUpdateTestC
             $$ LANGUAGE plpgsql;
         SQL;
 
-        $triggerSql = "CREATE TRIGGER {$triggerName} {$timing} {$events} ON {$tableName} FOR EACH ROW EXECUTE FUNCTION {$functionName}()";
+        $triggerSql = "CREATE TRIGGER {$triggerName} {$when} {$events} ON {$tableName} FOR EACH ROW EXECUTE FUNCTION {$functionName}()";
 
         return $functionSql . '; ' . $triggerSql;
     }

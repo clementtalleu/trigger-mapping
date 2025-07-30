@@ -72,7 +72,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
      * name: string,
      * table: string,
      * events: string[],
-     * timing: string,
+     * when: string,
      * scope: string,
      * content: string,
      * function: ?string,
@@ -88,7 +88,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                 'name' => $name,
                 'table' => (string) $trigger['EVENT_OBJECT_TABLE'],
                 'events' => [(string) $trigger['EVENT_MANIPULATION']],
-                'timing' => (string) $trigger['ACTION_TIMING'],
+                'when' => (string) $trigger['ACTION_TIMING'],
                 'scope' => 'ROW',
                 'content' => (string) $trigger['ACTION_STATEMENT'],
                 'function' => null,
@@ -106,7 +106,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
      * name: string,
      * table: string,
      * events: string[],
-     * timing: string,
+     * when: string,
      * scope: string,
      * content: string,
      * definition: string,
@@ -122,11 +122,11 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
             $definition = (string) $trigger['definition'];
 
             $upperDefinition = strtoupper($definition);
-            $timing = 'UNKNOWN';
+            $when = 'UNKNOWN';
             if (str_contains($upperDefinition, 'BEFORE')) {
-                $timing = 'BEFORE';
+                $when = 'BEFORE';
             } elseif (str_contains($upperDefinition, 'AFTER')) {
-                $timing = 'AFTER';
+                $when = 'AFTER';
             }
 
             $scope = 'UNKNOWN';
@@ -151,7 +151,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                 'name' => $name,
                 'table' => (string) $trigger['table_name'],
                 'events' => $events,
-                'timing' => $timing,
+                'when' => $when,
                 'scope' => $scope,
                 'content' => (string) $trigger['content'],
                 'function' => (string) $trigger['function_name'],

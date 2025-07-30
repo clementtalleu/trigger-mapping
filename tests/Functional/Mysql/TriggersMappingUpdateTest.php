@@ -8,11 +8,12 @@ use Talleu\TriggerMapping\Tests\Functional\AbstractTriggersMappingUpdateTestCase
 
 final class TriggersMappingUpdateTest extends AbstractTriggersMappingUpdateTestCase
 {
-    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $timing, string $events, ?string $functionName = null): string
+    protected function getCreateTriggerSql(string $triggerName, string $tableName, string $when, string $events, ?string $functionName = null): string
     {
         return <<<SQL
             CREATE TRIGGER {$triggerName}
-            {$timing} {$events} ON {$tableName}
+            {
+            } {$events} ON {$tableName}
             FOR EACH ROW
             BEGIN
                 -- Dummy logic for test trigger
@@ -44,7 +45,7 @@ final class TriggersMappingUpdateTest extends AbstractTriggersMappingUpdateTestC
         $this->assertStringContainsString('#[Trigger(name:', $fileContent);
         $this->assertStringContainsString('name: \'trigger_to_map\'', $fileContent);
         $this->assertStringContainsString('on: [\'INSERT\']', $fileContent);
-        $this->assertStringContainsString('timing: \'AFTER\'', $fileContent);
+        $this->assertStringContainsString('when: \'AFTER\'', $fileContent);
         // We assert that the function parameter is NOT present for MySQL
         $this->assertStringNotContainsString('function:', $fileContent);
     }

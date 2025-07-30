@@ -16,7 +16,7 @@ class Trigger
         public string $name,
         public ?string $function = null,
         public array $on = ['insert'],
-        public string $timing = 'AFTER',
+        public string $when = 'AFTER',
         public string $scope = 'ROW',
         public ?string $storage = null,
         public ?string $className = null,

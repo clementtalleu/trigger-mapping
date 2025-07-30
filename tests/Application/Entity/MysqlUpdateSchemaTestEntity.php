@@ -12,7 +12,7 @@ use Talleu\TriggerMapping\Tests\Application\Triggers\MysqlTriggerClass;
 #[Trigger(
     name: "trg_update_schema_test",
     on: ["UPDATE"],
-    timing: "BEFORE",
+    when: "BEFORE",
     scope: "ROW",
     className: MysqlTriggerClass::class
 )]

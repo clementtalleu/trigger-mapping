@@ -117,7 +117,7 @@ final class TriggersMappingUpdateCommand extends Command
                     name: $dbTriggerMissing['name'],
                     table: $dbTriggerMissing['table'],
                     events: $dbTriggerMissing['events'],
-                    timing: $dbTriggerMissing['timing'],
+                    when: $dbTriggerMissing['when'],
                     scope: $dbTriggerMissing['scope'],
                     storage: $this->storageResolver->getType(),
                     functionName: $dbTriggerMissing['function'],

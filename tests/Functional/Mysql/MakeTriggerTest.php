@@ -23,7 +23,7 @@ final class MakeTriggerTest extends AbstractMakeTriggerTestCase
             'entity-class' => NoTriggerEntity::class,
             'trigger-name' => $triggerName,
             'on' => 'UPDATE',
-            'timing' => 'AFTER',
+            'when' => 'AFTER',
             'storage' => 'sql',
         ]);
 
