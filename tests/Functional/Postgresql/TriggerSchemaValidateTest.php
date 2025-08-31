@@ -97,4 +97,26 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'not mapped'));
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'correctly_mapped_trigger'));
     }
+
+    public function testTableWithoutEntity(): void
+    {
+        $this->executeSql("CREATE TABLE useless_table (name VARCHAR(255) NOT NULL);");
+
+        $sql = $this->getCreateTriggerSql(
+            'useless_trigger',
+            'useless_table',
+            'BEFORE',
+            'UPDATE',
+            'correct_func'
+        );
+        $this->executeSql($sql);
+
+        $command = $this->application->find('triggers:schema:validate');
+        $commandTester = new CommandTester($command);
+        $commandTester->execute([]);
+
+        $this->assertTrue(str_contains($commandTester->getDisplay(), 'useless_trigger concerns a table'));
+        $this->assertTrue(str_contains($commandTester->getDisplay(), 'useless_table'));
+        $this->assertTrue(str_contains($commandTester->getDisplay(), 'not mapped by Doctrine'));
+    }
 }

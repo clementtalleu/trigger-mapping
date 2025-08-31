@@ -19,9 +19,9 @@
             <argument type="service" id="trigger_mapping.database.triggers_db_extractor"/>
             <argument type="service" id="trigger_mapping.storage_resolver"/>
             <argument type="service" id="trigger_mapping.factory.mapping_creator"/>
-            <argument type="service" id="maker.doctrine_helper" />
             <argument type="service" id="trigger_mapping.factory.trigger_creator"/>
             <argument type="service" id="maker.generator" />
+            <argument type="service" id="trigger_mapping.utils.entity_finder" />
             <tag name="console.command" />
         </service>
 
@@ -46,5 +46,4 @@
             <tag name="maker.command" />
         </service>
     </services>
-
 </container>

@@ -13,7 +13,7 @@
         <env name="APP_SECRET" value="test_secret"/>
 
         <env name="KERNEL_CLASS" value="Talleu\TriggerMapping\Tests\Application\Kernel"/>
-        <!--  Pour switcher de plateform       -->
+        <!--  To switch plateform   from mysql to postgre     -->
 <!--        <env name="DATABASE_URL" value="mysql://test_user:test_password@127.0.0.1:3308/test_db?serverVersion=8.0"/>-->
         <env name="DATABASE_URL" value="postgresql://test_user:test_password@127.0.0.1:5433/test_db?serverVersion=15"/>
     </php>
