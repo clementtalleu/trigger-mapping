@@ -9,6 +9,7 @@
         <service id="trigger_mapping.command.validate" class="Talleu\TriggerMapping\Command\TriggersSchemaValidateCommand">
             <argument type="service" id="trigger_mapping.metadata.triggers_mapping"/>
             <argument type="service" id="trigger_mapping.database.triggers_db_extractor"/>
+            <argument type="service" id="trigger_mapping.utils.entity_finder"/>
             <tag name="console.command" />
         </service>
 
@@ -45,6 +46,10 @@
             <argument type="service" id="trigger_mapping.platform_resolver"/>
             <argument type="service" id="doctrine.dbal.default_connection" />
             <tag name="console.command" />
+        </service>
+
+        <service id="trigger_mapping.utils.entity_finder" class="Talleu\TriggerMapping\Utils\EntityFinder">
+            <argument type="service" id="maker.doctrine_helper" />
         </service>
     </services>
 </container>

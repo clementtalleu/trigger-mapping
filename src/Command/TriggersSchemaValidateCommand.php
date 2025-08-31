@@ -13,6 +13,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractorInterface;
 use Talleu\TriggerMapping\Metadata\TriggersMappingInterface;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
+use Talleu\TriggerMapping\Utils\EntityFinder;
 
 #[AsCommand(name: 'triggers:schema:validate', description: 'Validate the triggers schema', aliases: ['t:s:v'])]
 final class TriggersSchemaValidateCommand extends Command
@@ -20,6 +21,7 @@ final class TriggersSchemaValidateCommand extends Command
     public function __construct(
         private readonly TriggersMappingInterface     $triggersMapping,
         private readonly TriggersDbExtractorInterface $triggersDbExtractor,
+        private readonly EntityFinder                 $entityFinder,
     ) {
         parent::__construct();
     }
@@ -41,6 +43,7 @@ final class TriggersSchemaValidateCommand extends Command
 
         $triggersMapping = $this->triggersMapping->extractTriggerMapping($entityName);
         $triggersSchema = $this->triggersDbExtractor->listTriggers($entityName);
+        $triggersSchema = $this->filterTriggersWithoutEntity($triggersSchema, $io);
 
         $entitiesTriggersKeys = array_keys($triggersMapping);
         $dbTriggersKeys = array_keys($triggersSchema);
@@ -180,5 +183,52 @@ final class TriggersSchemaValidateCommand extends Command
         }
 
         return $mismatch;
+    }
+
+    /**
+     * @param array<string, array{
+     *   name: string,
+     *   table: string,
+     *   events: string[],
+     *   when: string,
+     *   scope: string,
+     *   content: string,
+     *   definition: ?string,
+     *   function: ?string
+     *   }> $triggersSchema
+     *
+     *  @return array<string, array{
+     *  name: string,
+     *  table: string,
+     *  events: string[],
+     *  when: string,
+     *  scope: string,
+     *  content: string,
+     *  definition: ?string,
+     *  function: ?string
+     *  }>
+     * /
+     */
+    private function filterTriggersWithoutEntity(array $triggersSchema, SymfonyStyle $io): array
+    {
+        foreach ($triggersSchema as $triggerName => $triggerData) {
+
+            $table = $triggerData['table'];
+            $entityFqcn = $this->entityFinder->findEntityFqcnForTable($table);
+            if ($entityFqcn) {
+                continue;
+            }
+
+            $entityFqcn = $this->entityFinder->findEntityFqcnForJoinTable($table);
+            if ($entityFqcn) {
+                continue;
+            }
+
+            // No entity found, this table is not currently mapped by doctrine, remove the triggers
+            $io->comment(sprintf('<info>%s</>', "The trigger $triggerName concerns a table '$table' that is not mapped by Doctrine, skipping."));
+            unset($triggersSchema[$triggerName]);
+        }
+
+        return $triggersSchema;
     }
 }

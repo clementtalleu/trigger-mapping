@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Talleu\TriggerMapping\Command;
 
-use Doctrine\ORM\Mapping\ClassMetadata;
-use Symfony\Bundle\MakerBundle\Doctrine\DoctrineHelper;
 use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -19,6 +17,7 @@ use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
 use Talleu\TriggerMapping\Metadata\TriggersMappingInterface;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Talleu\TriggerMapping\Storage\StorageResolverInterface;
+use Talleu\TriggerMapping\Utils\EntityFinder;
 
 #[AsCommand(name: 'triggers:mapping:update', description: 'Update the entities mapping from the current database triggers', aliases: ['t:m:u'])]
 final class TriggersMappingUpdateCommand extends Command
@@ -28,9 +27,9 @@ final class TriggersMappingUpdateCommand extends Command
         private readonly TriggersDbExtractorInterface $triggersDbExtractor,
         private readonly StorageResolverInterface     $storageResolver,
         private readonly MappingCreatorInterface      $mappingCreator,
-        private readonly DoctrineHelper               $doctrineHelper,
         private readonly TriggerCreatorInterface      $triggerCreator,
         private readonly Generator                    $generator,
+        private readonly EntityFinder                 $entityFinder,
     ) {
         parent::__construct();
     }
@@ -88,12 +87,12 @@ final class TriggersMappingUpdateCommand extends Command
         foreach ($missingTriggersMapping as $missingTriggerKey) {
             $dbTriggerMissing = $dbTriggers[$missingTriggerKey];
 
-            $entityFqcn = $this->findEntityFqcnForTable($dbTriggerMissing['table']);
+            $entityFqcn = $this->entityFinder->findEntityFqcnForTable($dbTriggerMissing['table']);
 
             // No entity found, check if the trigger is on a join table without doctrine entity representation
             $onTable = null;
             if (null === $entityFqcn) {
-                $entityFqcn = $this->findEntityFqcnForJoinTable($dbTriggerMissing['table']);
+                $entityFqcn = $this->entityFinder->findEntityFqcnForJoinTable($dbTriggerMissing['table']);
                 $onTable = $dbTriggerMissing['table'];
             }
 
@@ -149,35 +148,5 @@ final class TriggersMappingUpdateCommand extends Command
         }
 
         return Command::SUCCESS;
-    }
-
-    private function findEntityFqcnForTable(string $tableName): ?string
-    {
-        $allMetadata = $this->doctrineHelper->getRegistry()->getManager()->getMetadataFactory()->getAllMetadata();
-
-        /** @var ClassMetadata<object> $metadata */
-        foreach ($allMetadata as $metadata) {
-            if ($metadata->getTableName() === $tableName) {
-                return $metadata->getName();
-            }
-        }
-
-        return null;
-    }
-
-    private function findEntityFqcnForJoinTable(string $tableName): ?string
-    {
-        $allMetadata = $this->doctrineHelper->getRegistry()->getManager()->getMetadataFactory()->getAllMetadata();
-
-        /** @var ClassMetadata<object> $metadata */
-        foreach ($allMetadata as $metadata) {
-            foreach ($metadata->getAssociationMappings() as $assoc) {
-                if (isset($assoc['joinTable']['name']) && $assoc['joinTable']['name'] === $tableName) {
-                    return $metadata->getName();
-                }
-            }
-        }
-
-        return null;
     }
 }
