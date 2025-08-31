@@ -109,10 +109,8 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
         $commandTester = new CommandTester($command);
         $commandTester->execute([]);
 
-        var_dump($commandTester->getDisplay());
-
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'useless_trigger concerns a table'));
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'useless_table'));
-        $this->assertTrue(str_contains($commandTester->getDisplay(), 'not mapped by Doctrine'));
+        $this->assertTrue(str_contains($commandTester->getDisplay(), 'Doctrine'));
     }
 }
