@@ -45,7 +45,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                     JOIN pg_class tbl ON tg.tgrelid = tbl.oid
                     JOIN pg_proc p ON tg.tgfoid = p.oid
                     JOIN pg_namespace ns ON tbl.relnamespace = ns.oid
-                    WHERE NOT tg.tgisinternal AND ns.nspname = 'public'";
+                    WHERE NOT tg.tgisinternal";
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizePostgresqlTriggers($rawTriggers);
