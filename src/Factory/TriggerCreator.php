@@ -137,11 +137,14 @@ final class TriggerCreator implements TriggerCreatorInterface
                 'definition' => $resolvedTrigger->definition,
             ];
 
-            $this->generator->generateFile(
-                sprintf('%s/functions/%s.sql', $storageDirectory, $resolvedTrigger->function),
-                __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/postgresql_function.tpl.php',
-                $params
-            );
+            $functionFilePath = sprintf('%s/functions/%s.sql', $storageDirectory, $resolvedTrigger->function);
+            if (!file_exists($functionFilePath)) {
+                $this->generator->generateFile(
+                    $functionFilePath,
+                    __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/postgresql_function.tpl.php',
+                    $params
+                );
+            }
 
             $this->generator->generateFile(
                 sprintf('%s/triggers/%s.sql', $storageDirectory, $resolvedTrigger->name),
