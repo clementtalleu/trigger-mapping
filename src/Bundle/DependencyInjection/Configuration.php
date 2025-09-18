@@ -40,6 +40,10 @@ class Configuration implements ConfigurationInterface
                     ->defaultTrue()
                     ->info('Whether to automatically generate migrations for triggers.')
                 ->end()
+                ->arrayNode('excludes')
+                    ->info('The triggers you want to exclude from your mapping.')
+                    ->scalarPrototype()->end()
+                ->end()
             ->end();
 
         return $treeBuilder;

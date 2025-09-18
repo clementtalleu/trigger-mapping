@@ -9,9 +9,13 @@ use Talleu\TriggerMapping\Platform\DatabasePlatformResolver;
 
 final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
 {
+    /**
+     * @param string[] $excludedTriggers
+     */
     public function __construct(
         private DependencyFactory        $dependencyFactory,
         private DatabasePlatformResolver $databasePlatformResolver,
+        private array                    $excludedTriggers,
     ) {
     }
 
@@ -62,7 +66,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
             });
         }
 
-        return $triggers;
+        return $this->removeExcludesTriggers($triggers);
     }
 
     /**
@@ -83,14 +87,14 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
     {
         $normalized = [];
         foreach ($rawTriggers as $trigger) {
-            $name = (string) $trigger['TRIGGER_NAME'];
+            $name = (string)$trigger['TRIGGER_NAME'];
             $normalized[$name] = [
                 'name' => $name,
-                'table' => (string) $trigger['EVENT_OBJECT_TABLE'],
-                'events' => [(string) $trigger['EVENT_MANIPULATION']],
-                'when' => (string) $trigger['ACTION_TIMING'],
+                'table' => (string)$trigger['EVENT_OBJECT_TABLE'],
+                'events' => [(string)$trigger['EVENT_MANIPULATION']],
+                'when' => (string)$trigger['ACTION_TIMING'],
                 'scope' => 'ROW',
-                'content' => (string) $trigger['ACTION_STATEMENT'],
+                'content' => (string)$trigger['ACTION_STATEMENT'],
                 'function' => null,
                 'definition' => null,
             ];
@@ -118,8 +122,8 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
         $normalized = [];
         foreach ($rawTriggers as $trigger) {
 
-            $name = (string) $trigger['trigger_name'];
-            $definition = (string) $trigger['definition'];
+            $name = (string)$trigger['trigger_name'];
+            $definition = (string)$trigger['definition'];
 
             $upperDefinition = strtoupper($definition);
             $when = 'UNKNOWN';
@@ -149,16 +153,50 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
 
             $normalized[$name] = [
                 'name' => $name,
-                'table' => (string) $trigger['table_name'],
+                'table' => (string)$trigger['table_name'],
                 'events' => $events,
                 'when' => $when,
                 'scope' => $scope,
-                'content' => (string) $trigger['content'],
-                'function' => (string) $trigger['function_name'],
+                'content' => (string)$trigger['content'],
+                'function' => (string)$trigger['function_name'],
                 'definition' => $definition
             ];
         }
 
         return $normalized;
+    }
+
+    /**
+     * @param array<string, array{
+     *  name: string,
+     *  table: string,
+     *  events: string[],
+     *  when: string,
+     *  scope: string,
+     *  content: string,
+     *  function: ?string,
+     *  definition: ?string
+     *  }> $normalizedTriggers
+     *
+     * @return array<string, array{
+     * name: string,
+     * table: string,
+     * events: string[],
+     * when: string,
+     * scope: string,
+     * content: string,
+     * function: ?string,
+     * definition: ?string
+     * }>
+     */
+    private function removeExcludesTriggers(array $normalizedTriggers): array
+    {
+        foreach ($this->excludedTriggers as $excludedTrigger) {
+            if (array_key_exists($excludedTrigger, $normalizedTriggers)) {
+                unset($normalizedTriggers[$excludedTrigger]);
+            }
+        }
+
+        return $normalizedTriggers;
     }
 }
