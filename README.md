@@ -217,3 +217,20 @@ bin/console make:trigger
 ```
 
 Dedicated documentation [here](https://github.com/clementtalleu/trigger-mapping/blob/main/docs/make_trigger.md)
+
+---
+
+### Exclude triggers
+
+Maybe you need to excludes some triggers in your DB from your current mapping.
+Just modify your configuration file by adding
+
+```yaml
+trigger_mapping:
+ #...
+  excludes: 
+    - excluded_trigger_name
+    - another_excluded_trigger_name
+```
+
+It allows you to ignore theses trigger

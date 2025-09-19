@@ -22,6 +22,7 @@
         <service id="trigger_mapping.database.triggers_db_extractor" class="Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractor">
             <argument type="service" id="doctrine.migrations.dependency_factory"/>
             <argument type="service" id="trigger_mapping.platform_resolver"/>
+            <argument>%trigger_mapping.exclude%</argument>
         </service>
 
         <service id="trigger_mapping.factory.trigger_definition_factory"

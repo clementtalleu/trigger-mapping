@@ -1,0 +1,1 @@
+To run test, docker compose up -d, then switch the env (mysql/postgre) in the phphunit.xml.dist file
