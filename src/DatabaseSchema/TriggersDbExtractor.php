@@ -38,6 +38,26 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizeMysqlTriggers($rawTriggers);
+        } else if ($this->databasePlatformResolver->isSQLServer()) {
+            $sql = "SELECT 
+                        T.name AS name,
+                        T.object_id AS id,
+                        T.parent_class_desc AS parent_type,
+                        T.type_desc AS type,
+                        TE.type_desc AS event_type,
+                        O.name AS table_name,
+                        TT.type_name AS type_name
+                    FROM sys.triggers AS T
+                    INNER JOIN sys.trigger_events AS TE
+                    ON T.object_id = TE.object_id
+                    INNER JOIN sys.objects AS O
+                    ON T.parent_id = O.object_id
+                    LEFT JOIN sys.trigger_event_types AS TT
+                    ON TE.type = TT.type";
+                    
+
+            $rawTriggers = $connection->fetchAllAssociative($sql);
+            $triggers = $this->normalizeSqlServerTriggers($rawTriggers);
         } elseif ($this->databasePlatformResolver->isPostgreSQL()) {
             $sql = "SELECT
                         tg.tgname AS trigger_name,
@@ -95,6 +115,40 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                 'when' => (string)$trigger['ACTION_TIMING'],
                 'scope' => 'ROW',
                 'content' => (string)$trigger['ACTION_STATEMENT'],
+                'function' => null,
+                'definition' => null,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $rawTriggers
+     *
+     * @return array<string, array{
+     * name: string,
+     * table: string,
+     * events: string[],
+     * when: string,
+     * scope: string,
+     * content: string,
+     * function: ?string,
+     * definition: ?string
+     * }>
+     */
+    private function normalizeSqlServerTriggers(array $rawTriggers): array
+    {
+        $normalized = [];
+        foreach ($rawTriggers as $trigger) {
+            $name = (string)$trigger['name'];
+            $normalized[$name] = [
+                'name' => $name,
+                'table' => (string)$trigger['table_name'],
+                'events' => [(string)$trigger['event_type']],
+                'when' => 'AFTER',
+                'scope' => 'ROW',
+                'content' => '',
                 'function' => null,
                 'definition' => null,
             ];

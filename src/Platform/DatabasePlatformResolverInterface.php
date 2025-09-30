@@ -10,5 +10,7 @@ interface DatabasePlatformResolverInterface
 
     public function isPostgreSQL(): bool;
 
+    public function isSQLServer(): bool;
+
     public function getPlatformName(): string;
 }
