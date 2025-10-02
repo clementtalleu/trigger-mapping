@@ -6,6 +6,7 @@ namespace Talleu\TriggerMapping\Factory;
 
 use Symfony\Bundle\MakerBundle\FileManager;
 use Symfony\Bundle\MakerBundle\Util\ClassDetails;
+use Symfony\Bundle\MakerBundle\Util\ClassNameValue;
 use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Symfony\Bundle\MakerBundle\Util\ClassSourceManipulator;
@@ -18,6 +19,7 @@ final readonly class MappingCreator implements MappingCreatorInterface
 
     /**
      * @inheritdoc
+     * @param class-string|null $triggerClassFqcn
      */
     public function createMapping(
         ResolvedTrigger $resolvedTrigger,
@@ -44,7 +46,10 @@ final readonly class MappingCreator implements MappingCreatorInterface
         }
 
         if ($triggerClassFqcn !== null) {
-            $attributeArguments['className'] = $triggerClassFqcn;
+            $reflection = new \ReflectionClass($triggerClassFqcn);
+            $classShortName = $reflection->getShortName();
+            $manipulator->addUseStatementIfNecessary($triggerClassFqcn);
+            $attributeArguments['className'] = new ClassNameValue($classShortName, $triggerClassFqcn);
         }
 
         $manipulator->addAttributeToClass(Trigger::class, $attributeArguments);

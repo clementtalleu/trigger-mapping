@@ -47,6 +47,7 @@ final class TriggersMappingUpdateTest extends AbstractTriggersMappingUpdateTestC
         $commandTester->assertCommandIsSuccessful();
         $this->assertStringContainsString('Mapping update process finished successfully', $commandTester->getDisplay());
         $reflection = new \ReflectionClass(UpdateMappingTestEntity::class);
+
         $filePath = $reflection->getFileName();
         $fileContent = file_get_contents($filePath);
         $this->assertStringContainsString('#[Trigger(name', $fileContent);
