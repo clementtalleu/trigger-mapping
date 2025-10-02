@@ -19,6 +19,7 @@ final readonly class MappingCreator implements MappingCreatorInterface
 
     /**
      * @inheritdoc
+     * @param class-string|null $triggerClassFqcn
      */
     public function createMapping(
         ResolvedTrigger $resolvedTrigger,
