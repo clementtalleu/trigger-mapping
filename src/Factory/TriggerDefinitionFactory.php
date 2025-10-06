@@ -24,10 +24,16 @@ final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactor
     {
         if (null !== $attribute->storage && null !== Storage::tryFrom($attribute->storage)) {
             $storage = $attribute->storage;
-        } elseif (null !== $attribute->storage && null == Storage::tryFrom($attribute->storage)) {
+        } elseif (null !== $attribute->storage && null === Storage::tryFrom($attribute->storage)) {
             throw new \InvalidArgumentException("{$attribute->storage} is not a valid storage, should be php or sql");
         } else {
-            $storage = $this->storageResolver->getType();
+            $reflectionClass = $metadata->getReflectionClass();
+            if (null === $reflectionClass) {
+                throw new \RuntimeException('Reflection class is null');
+            }
+
+            // Get entity namespace and remove "\Entity" from the end
+            $storage = $this->storageResolver->getType(substr($reflectionClass->getNamespaceName(), 0, -7));
         }
 
         return ResolvedTrigger::create(

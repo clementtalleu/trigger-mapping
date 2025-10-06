@@ -10,5 +10,5 @@ interface StorageResolverInterface
 
     public function getResolvedNamespace(): string;
 
-    public function getType(): string;
+    public function getType(?string $namespace = null): string;
 }

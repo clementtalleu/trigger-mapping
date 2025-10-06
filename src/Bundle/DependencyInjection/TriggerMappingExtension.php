@@ -7,9 +7,11 @@ namespace Talleu\TriggerMapping\Bundle\DependencyInjection;
 use Symfony\Bundle\MakerBundle\Maker\AbstractMaker;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
 use Talleu\TriggerMapping\Storage\Storage;
+use Talleu\TriggerMapping\Storage\StorageResolver;
 
 final class TriggerMappingExtension extends Extension
 {
@@ -27,6 +29,7 @@ final class TriggerMappingExtension extends Extension
         }
 
         foreach ($config['storages'] as $storage) {
+            // Validate storage type
             if (null === Storage::tryFrom($storage['type'])) {
                 throw new \InvalidArgumentException(
                     sprintf(
@@ -36,11 +39,10 @@ final class TriggerMappingExtension extends Extension
                     )
                 );
             }
-
-            $container->setParameter('trigger_mapping.storage.type', $storage['type']);
-            $container->setParameter('trigger_mapping.storage.directory', $storage['directory']);
-            $container->setParameter('trigger_mapping.storage.namespace', $storage['namespace']);
         }
+
+        $definition = new Definition(StorageResolver::class, [$config['storages']]);
+        $container->setDefinition('trigger_mapping.storage_resolver', $definition);
 
         $container->setParameter('trigger_mapping.migrations', $config['migrations']);
 

@@ -35,12 +35,6 @@
             <argument type="service" id="doctrine.dbal.default_connection" />
         </service>
 
-        <service id="trigger_mapping.storage_resolver" class="Talleu\TriggerMapping\Storage\StorageResolver">
-            <argument>%trigger_mapping.storage.type%</argument>
-            <argument>%trigger_mapping.storage.directory%</argument>
-            <argument>%trigger_mapping.storage.namespace%</argument>
-        </service>
-
         <service id="trigger_mapping.command.schema_update" class="Talleu\TriggerMapping\Command\TriggersSchemaUpdateCommand">
             <argument type="service" id="trigger_mapping.metadata.triggers_mapping"/>
             <argument type="service" id="trigger_mapping.storage_resolver"/>
