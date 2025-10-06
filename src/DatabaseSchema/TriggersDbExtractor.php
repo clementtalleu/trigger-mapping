@@ -38,7 +38,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizeMysqlTriggers($rawTriggers);
-        } else if ($this->databasePlatformResolver->isSQLServer()) {
+        } elseif ($this->databasePlatformResolver->isSQLServer()) {
             $sql = "SELECT 
                         T.name AS name,
                         T.object_id AS id,
@@ -54,7 +54,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                     ON T.parent_id = O.object_id
                     LEFT JOIN sys.trigger_event_types AS TT
                     ON TE.type = TT.type";
-                    
+
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizeSqlServerTriggers($rawTriggers);
