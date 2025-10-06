@@ -99,6 +99,13 @@ final class TriggerCreator implements TriggerCreatorInterface
             $template = 'MysqlTrigger.tpl.php';
             $params['events'] = strtoupper($resolvedTrigger->events[0]);
 
+        } elseif ($this->databasePlatformResolver->isSQLServer()) {
+            if ($resolvedTrigger->when === 'BEFORE') {
+                throw new \InvalidArgumentException('SQL Server does not support before event');
+            }
+            $template = 'SqlServerTrigger.tpl.php';
+            $params['events'] = strtoupper($resolvedTrigger->events[0]);
+
         } else {
             throw new \RuntimeException(sprintf('Database platform "%s" is not supported for PHP class generation.', $this->databasePlatformResolver->getPlatformName()));
         }
@@ -170,6 +177,33 @@ final class TriggerCreator implements TriggerCreatorInterface
                 $this->generator->generateFile(
                     $triggerFilePath,
                     __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/mysql_trigger.tpl.php',
+                    $params
+                );
+            } catch (RuntimeCommandException $exception) {
+                if (str_contains($exception->getMessage(), 'already exists')) {
+                    throw new TriggerSqlFileAlreadyExistsException($triggerFilePath);
+                }
+
+                throw $exception;
+            }
+        } elseif ($this->databasePlatformResolver->isSQLServer()) {
+            if ($resolvedTrigger->when === 'BEFORE') {
+                throw new \InvalidArgumentException('SQL Server does not support before event');
+            }
+
+            $params = [
+                'trigger_name' => $resolvedTrigger->name,
+                'table_name' => $resolvedTrigger->table,
+                'when' => $resolvedTrigger->when,
+                'events' => strtoupper($resolvedTrigger->events[0]),
+            ];
+
+            $triggerFilePath = sprintf('%s/%s.sql', $storageDirectory, $resolvedTrigger->name);
+
+            try {
+                $this->generator->generateFile(
+                    $triggerFilePath,
+                    __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/sqlserver_trigger.tpl.php',
                     $params
                 );
             } catch (RuntimeCommandException $exception) {

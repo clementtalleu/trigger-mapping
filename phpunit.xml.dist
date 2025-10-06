@@ -15,7 +15,8 @@
         <env name="KERNEL_CLASS" value="Talleu\TriggerMapping\Tests\Application\Kernel"/>
         <!--  To switch plateform   from mysql to postgre     -->
         <env name="DATABASE_URL" value="mysql://test_user:test_password@127.0.0.1:3308/test_db?serverVersion=8.0"/>
-<!--        <env name="DATABASE_URL" value="postgresql://test_user:test_password@127.0.0.1:5433/test_db?serverVersion=15"/>-->
+        <!--<env name="DATABASE_URL" value="postgresql://test_user:test_password@127.0.0.1:5433/test_db?serverVersion=15"/>-->
+        <!--<env name="DATABASE_URL" value="pdo-sqlsrv://sa:StrongPassw0rd@127.0.0.1:1433/test_db?serverVersion=2022&amp;charset=UTF-8"/>-->
     </php>
 
     <testsuites>
@@ -24,6 +25,9 @@
         </testsuite>
         <testsuite name="postgresql">
             <directory>tests/Functional/Postgresql</directory>
+        </testsuite>
+        <testsuite name="sqlserver">
+            <directory>tests/Functional/SqlServer</directory>
         </testsuite>
         <testsuite name="unit">
             <directory>tests/Unit</directory>

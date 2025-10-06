@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractMySQLPlatform;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\SQLServerPlatform;
 
 final readonly class DatabasePlatformResolver implements DatabasePlatformResolverInterface
 {
@@ -28,11 +29,20 @@ final readonly class DatabasePlatformResolver implements DatabasePlatformResolve
         return $this->getPlatform() instanceof AbstractMySQLPlatform;
     }
 
+    public function isSQLServer(): bool
+    {
+        return $this->getPlatform() instanceof SQLServerPlatform;
+    }
+
 
     public function getPlatformName(): string
     {
         if ($this->isMySQL()) {
             return 'mysql';
+        }
+
+        if ($this->isSQLServer()) {
+            return 'sqlsrv';
         }
 
         return 'postgresql';

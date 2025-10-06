@@ -6,6 +6,7 @@ namespace Talleu\TriggerMapping\Tests\Functional;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
+use Doctrine\DBAL\Platforms\SQLServerPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
@@ -76,10 +77,22 @@ abstract class AbstractTriggersSchemaUpdateTestCase extends KernelTestCase
 
     protected function triggerExists(string $triggerName): bool
     {
-        $platform = $this->connection->getDatabasePlatform() instanceof PostgreSQLPlatform ? 'postgresql' : 'mysql';
+        switch ($this->connection->getDatabasePlatform()::class) {
+            case PostgreSQLPlatform::class:
+                $platform = 'postgresql';
+                break;
+            case SQLServerPlatform::class:
+                $platform = 'sqlsrv';
+                break;
+            default:
+                $platform = 'mysql';
+                break;
+        }
 
         if ($platform === 'mysql') {
             $sql = "SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_NAME = ?";
+        } elseif ($platform === 'sqlsrv') { 
+            $sql = "SELECT COUNT(*) FROM sys.triggers AS T WHERE T.name = ?";
         } else {
             $sql = "SELECT COUNT(*) FROM pg_trigger WHERE tgname = ?";
         }

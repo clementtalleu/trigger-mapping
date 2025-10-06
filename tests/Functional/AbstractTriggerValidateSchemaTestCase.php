@@ -14,6 +14,7 @@ use Talleu\TriggerMapping\Tests\Application\Entity\CorrectlyMappedEntity;
 use Talleu\TriggerMapping\Tests\Application\Entity\MissingInDbEntity;
 use Talleu\TriggerMapping\Tests\Application\Entity\MysqlCorrectlyMappedEntity;
 use Talleu\TriggerMapping\Tests\Application\Entity\NoTriggerEntity;
+use Talleu\TriggerMapping\Tests\Application\Entity\SqlServerCorrectlyMappedEntity;
 use Talleu\TriggerMapping\Tests\Application\Entity\TriggerBadParamsEntity;
 
 abstract class AbstractTriggerValidateSchemaTestCase extends KernelTestCase
@@ -39,6 +40,7 @@ abstract class AbstractTriggerValidateSchemaTestCase extends KernelTestCase
             CorrectlyMappedEntity::class,
             MissingInDbEntity::class,
             MysqlCorrectlyMappedEntity::class,
+            SqlServerCorrectlyMappedEntity::class,
             TriggerBadParamsEntity::class,
         ]);
     }
