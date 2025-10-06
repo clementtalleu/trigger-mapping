@@ -26,20 +26,23 @@ final class TriggerMappingExtension extends Extension
             $loader->load('maker.xml');
         }
 
-        if (null === Storage::tryFrom($config['storage']['type'])) {
-            throw new \InvalidArgumentException(
-                sprintf(
-                    'Invalid storage type "%s". Allowed values are: %s',
-                    $config['storage']['type'],
-                    implode(', ', array_column(Storage::cases(), 'value'))
-                )
-            );
+        foreach ($config['storages'] as $storage) {
+            if (null === Storage::tryFrom($storage['type'])) {
+                throw new \InvalidArgumentException(
+                    sprintf(
+                        'Invalid storage type "%s". Allowed values are: %s',
+                        $storage['type'],
+                        implode(', ', array_column(Storage::cases(), 'value'))
+                    )
+                );
+            }
+
+            $container->setParameter('trigger_mapping.storage.type', $storage['type']);
+            $container->setParameter('trigger_mapping.storage.directory', $storage['directory']);
+            $container->setParameter('trigger_mapping.storage.namespace', $storage['namespace']);
         }
 
-        $container->setParameter('trigger_mapping.storage.type', $config['storage']['type']);
-        $container->setParameter('trigger_mapping.storage.directory', $config['storage']['directory']);
         $container->setParameter('trigger_mapping.migrations', $config['migrations']);
-        $container->setParameter('trigger_mapping.storage.namespace', $config['storage']['namespace']);
 
         // Exclude triggers from mapping or validation
         $excludes = $config['excludes'];
