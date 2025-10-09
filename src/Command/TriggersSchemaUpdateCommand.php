@@ -121,17 +121,25 @@ final class TriggersSchemaUpdateCommand extends Command
                     $queries[] = $queryTrigger;
                 }
             } else {
-                $dir = $this->storageResolver->getResolvedDirectory();
                 if ($trigger->function) {
-                    $functionFilePath = sprintf('%s/functions/%s.sql', $dir, $trigger->function);
-                    if (file_exists($functionFilePath)) {
-                        $queries[] = file_get_contents(sprintf('%s/functions/%s.sql', $dir, $trigger->function));
-                    } else {
+                    try {
+                        $queries[] = file_get_contents($this->storageResolver->getFunctionSqlFilePath($trigger));
+                    } catch (\InvalidArgumentException) {
                         // No sql file, but it does not means the function doesn't exists, so just warning. It will crash if no function in DB
-                        $io->warning("No .sql file found for function {$trigger->function}, path should be : $functionFilePath");
+                        $io->warning("No .sql file found for function $trigger->function");
                     }
+
+                    // $functionFilePath = sprintf('%s/functions/%s.sql', $dir, $trigger->function);
+                    // if (file_exists($functionFilePath)) {
+                    //     $queries[] = file_get_contents(sprintf('%s/functions/%s.sql', $dir, $trigger->function));
+                    // } else {
+                    //     // No sql file, but it does not means the function doesn't exists, so just warning. It will crash if no function in DB
+                    //     $io->warning("No .sql file found for function {$trigger->function}, path should be : $functionFilePath");
+                    // }
                 }
-                $triggerFilePath = sprintf('%s/triggers/%s.sql', $dir, $trigger->name);
+
+                // $triggerFilePath = sprintf('%s/triggers/%s.sql', $dir, $trigger->name);
+                $triggerFilePath = $this->storageResolver->getTriggerSqlFilePath($trigger);
                 if (!file_exists($triggerFilePath)) {
                     throw new CouldNotFindTriggerSqlFileException($triggerFilePath);
                 }

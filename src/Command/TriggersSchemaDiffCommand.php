@@ -15,6 +15,7 @@ use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractorInterface;
 use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
 use Talleu\TriggerMapping\Metadata\TriggersMappingInterface;
 use Talleu\TriggerMapping\Storage\Storage;
+use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 
 #[AsCommand(
     name: 'triggers:schema:diff',
@@ -23,11 +24,14 @@ use Talleu\TriggerMapping\Storage\Storage;
 )]
 final class TriggersSchemaDiffCommand extends Command
 {
+    use WithNamespaceOptionTrait;
+
     public function __construct(
         private readonly TriggersMappingInterface     $triggersMapping,
         private readonly TriggersDbExtractorInterface $triggersDbExtractor,
         private readonly TriggerCreatorInterface      $triggerCreator,
         private readonly Generator                    $generator,
+        private readonly StorageResolverInterface     $storageResolver,
     ) {
         parent::__construct();
     }
@@ -39,6 +43,13 @@ final class TriggersSchemaDiffCommand extends Command
             'a',
             InputOption::VALUE_NONE,
             'Create the SQL/PHP templates from the entity mapping.'
+        );
+
+        $this->addOption(
+            'namespace',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'The namespace to use for the triggers (must be in the list of configured storages\' namespaces)',
         );
     }
 
@@ -53,6 +64,7 @@ final class TriggersSchemaDiffCommand extends Command
             $io->note('Running in DRY-RUN mode. No files will be changed. Use the --apply option to execute changes.');
         }
 
+        $namespace = $this->getNamespace($this->storageResolver, $io, $input, $output);
         $entitiesTriggers = $this->triggersMapping->extractTriggerMapping();
         $entitiesTriggersNames = array_keys($entitiesTriggers);
         $dbTriggersNames = array_keys($this->triggersDbExtractor->listTriggers());
@@ -67,7 +79,9 @@ final class TriggersSchemaDiffCommand extends Command
         $io->section('The following triggers are mapped but missing from the database:');
         $triggersToCreate = [];
         foreach ($missingTriggersKeysNames as $missingTriggerName) {
-            $triggersToCreate[] = $entitiesTriggers[$missingTriggerName];
+            $trigger = $entitiesTriggers[$missingTriggerName];
+            $trigger->namespace = $namespace;
+            $triggersToCreate[] = $trigger;
         }
 
         $listItems = [];

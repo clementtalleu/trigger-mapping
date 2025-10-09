@@ -10,6 +10,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
+use Symfony\Component\DependencyInjection\Reference;
 use Talleu\TriggerMapping\Storage\Storage;
 use Talleu\TriggerMapping\Storage\StorageResolver;
 
@@ -41,7 +42,10 @@ final class TriggerMappingExtension extends Extension
             }
         }
 
-        $definition = new Definition(StorageResolver::class, [$config['storages']]);
+        $definition = new Definition(
+            StorageResolver::class,
+            [$config['storages'], new Reference('trigger_mapping.platform_resolver'), new Reference('file_locator')]
+        );
         $container->setDefinition('trigger_mapping.storage_resolver', $definition);
 
         $container->setParameter('trigger_mapping.migrations', $config['migrations']);

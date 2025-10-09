@@ -9,6 +9,7 @@ use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Talleu\TriggerMapping\Storage\Storage;
 use Talleu\TriggerMapping\Storage\StorageResolverInterface;
+use Talleu\TriggerMapping\Utils\NamespaceGuesser;
 
 final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactoryInterface
 {
@@ -22,18 +23,20 @@ final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactor
      */
     public function createFromAttribute(Trigger $attribute, ClassMetadata $metadata): ResolvedTrigger
     {
+        $namespace = NamespaceGuesser::findClosest(
+            $metadata->getReflectionClass()->getNamespaceName(),
+            $this->storageResolver->getAvailableNamespaces()
+        );
+        if ($namespace === null) {
+            throw new \InvalidArgumentException('Cannot determine a common namespace between the trigger and the storage configuration');
+        }
+
         if (null !== $attribute->storage && null !== Storage::tryFrom($attribute->storage)) {
             $storage = $attribute->storage;
         } elseif (null !== $attribute->storage && null === Storage::tryFrom($attribute->storage)) {
             throw new \InvalidArgumentException("{$attribute->storage} is not a valid storage, should be php or sql");
         } else {
-            $reflectionClass = $metadata->getReflectionClass();
-            if (null === $reflectionClass) {
-                throw new \RuntimeException('Reflection class is null');
-            }
-
-            // Get entity namespace and remove "\Entity" from the end
-            $storage = $this->storageResolver->getType(substr($reflectionClass->getNamespaceName(), 0, -7));
+            $storage = $this->storageResolver->getType($namespace);
         }
 
         return ResolvedTrigger::create(

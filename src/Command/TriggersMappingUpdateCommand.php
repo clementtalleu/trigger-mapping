@@ -22,6 +22,8 @@ use Talleu\TriggerMapping\Utils\EntityFinder;
 #[AsCommand(name: 'triggers:mapping:update', description: 'Update the entities mapping from the current database triggers', aliases: ['t:m:u'])]
 final class TriggersMappingUpdateCommand extends Command
 {
+    use WithNamespaceOptionTrait;
+
     public function __construct(
         private readonly TriggersMappingInterface     $triggersMapping,
         private readonly TriggersDbExtractorInterface $triggersDbExtractor,
@@ -49,6 +51,13 @@ final class TriggersMappingUpdateCommand extends Command
             InputOption::VALUE_NONE,
             'Create dedicated files with content from the database.'
         );
+
+        $this->addOption(
+            'namespace',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'The namespace to use for the triggers (must be in the list of configured storages\' namespaces)',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -72,6 +81,7 @@ final class TriggersMappingUpdateCommand extends Command
             }
         }
 
+        $namespace = $this->getNamespace($this->storageResolver, $io, $input, $output);
         $entitiesTriggersNames = array_keys($this->triggersMapping->extractTriggerMapping());
         $dbTriggers = $this->triggersDbExtractor->listTriggers();
         $dbTriggersKeys = array_keys($dbTriggers);
@@ -118,7 +128,7 @@ final class TriggersMappingUpdateCommand extends Command
                     events: $dbTriggerMissing['events'],
                     when: $dbTriggerMissing['when'],
                     scope: $dbTriggerMissing['scope'],
-                    storage: $this->storageResolver->getType(),
+                    storage: $this->storageResolver->getType($namespace),
                     functionName: $dbTriggerMissing['function'],
                     definition: $dbTriggerMissing['definition'],
                     content: $dbTriggerMissing['content']
@@ -126,7 +136,7 @@ final class TriggersMappingUpdateCommand extends Command
 
                 $triggerClassFqcn = null;
                 if ($isCreateFiles) {
-                    $triggersClassesDetails = $this->triggerCreator->create([$resolvedTrigger], false, $io);
+                    $triggersClassesDetails = $this->triggerCreator->create($namespace, [$resolvedTrigger], false, $io);
                     $triggerClassFqcn = !empty($triggersClassesDetails) ? $triggersClassesDetails[0]->getFullName() : null;
                     $this->generator->writeChanges();
                 }

@@ -35,43 +35,40 @@ final class TriggerCreator implements TriggerCreatorInterface
     /**
      * @inheritdoc
      */
-    public function create(array $resolvedTriggers, ?bool $createMigrations = null, ?StyleInterface $io = null): array
+    public function create(string $namespace, array $resolvedTriggers, ?bool $createMigrations = null, ?StyleInterface $io = null): array
     {
         $triggersForMigrationsPHP = [];
         $triggersForMigrationsSQL = [];
 
         foreach ($resolvedTriggers as $resolvedTrigger) {
-            if ($resolvedTrigger->storage === Storage::PHP_CLASSES->value) {
-                $triggerClassDetails = $this->createTriggerClass($resolvedTrigger);
+            if ($this->getResolvedTriggerStorage($namespace, $resolvedTrigger) === Storage::PHP_CLASSES->value) {
+                $triggerClassDetails = $this->createTriggerClass($namespace, $resolvedTrigger);
                 $triggersForMigrationsPHP[] = [
                     'classDetails' => $triggerClassDetails,
                     'resolvedTrigger' => $resolvedTrigger,
                 ];
                 $triggersClassesDetails[] = $triggerClassDetails;
             } else {
-                $this->createTriggerSqlFiles($resolvedTrigger);
+                $this->createTriggerSqlFiles($namespace, $resolvedTrigger);
                 $triggersForMigrationsSQL[] = $resolvedTrigger;
             }
         }
 
         if (true === $createMigrations || (null === $createMigrations && true === $this->migrations)) {
-            $this->createMigration($triggersForMigrationsPHP, $triggersForMigrationsSQL, $io);
+            $this->createMigration($namespace, $triggersForMigrationsPHP, $triggersForMigrationsSQL, $io);
         }
 
         return $triggersClassesDetails ?? [];
     }
 
-    private function createTriggerClass(ResolvedTrigger $resolvedTrigger): ClassNameDetails
+    private function createTriggerClass(string $namespace, ResolvedTrigger $resolvedTrigger): ClassNameDetails
     {
         $className = Str::asClassName($resolvedTrigger->name);
-        $namespace = $this->storageResolver->getResolvedNamespace();
-
-        // The createClassNameDetails says "but *without* the "App\\" part"
-        if (str_starts_with($namespace, 'App\\')) {
-            $namespace = str_replace('App\\', '', $namespace);
-        }
-
-        $triggerClassNameDetails = $this->generator->createClassNameDetails($className, $namespace);
+        $namespace = $this->storageResolver->getResolvedNamespace($namespace);
+        $triggerClassNameDetails = $this->generator->createClassNameDetails(
+            '\\' . $namespace . '\\' . $className,
+            $namespace
+        );
 
         $params = [
             'trigger_name' => $resolvedTrigger->name,
@@ -127,92 +124,95 @@ final class TriggerCreator implements TriggerCreatorInterface
         return $triggerClassNameDetails;
     }
 
-    private function createTriggerSqlFiles(ResolvedTrigger $resolvedTrigger): void
+    private function createTriggerSqlFiles(string $namespace, ResolvedTrigger $resolvedTrigger): void
     {
-        $storageDirectory = $this->storageResolver->getResolvedDirectory();
+        switch (true) {
+            case $this->databasePlatformResolver->isPostgreSQL():
+                $params = [
+                    'trigger_name' => $resolvedTrigger->name,
+                    'table_name' => $resolvedTrigger->table,
+                    'function_name' => $resolvedTrigger->function,
+                    'when' => $resolvedTrigger->when,
+                    'scope' => $resolvedTrigger->scope,
+                    'events' => strtoupper(implode(' OR ', $resolvedTrigger->events)),
+                    'return_value' => ($resolvedTrigger->when === 'AFTER') ? 'NULL' : 'NEW',
+                    'content' => $resolvedTrigger->content,
+                    'definition' => $resolvedTrigger->definition,
+                ];
 
-        if ($this->databasePlatformResolver->isPostgreSQL()) {
-            $params = [
-                'trigger_name' => $resolvedTrigger->name,
-                'table_name' => $resolvedTrigger->table,
-                'function_name' => $resolvedTrigger->function,
-                'when' => $resolvedTrigger->when,
-                'scope' => $resolvedTrigger->scope,
-                'events' => strtoupper(implode(' OR ', $resolvedTrigger->events)),
-                'return_value' => ($resolvedTrigger->when === 'AFTER') ? 'NULL' : 'NEW',
-                'content' => $resolvedTrigger->content,
-                'definition' => $resolvedTrigger->definition,
-            ];
-
-            $functionFilePath = sprintf('%s/functions/%s.sql', $storageDirectory, $resolvedTrigger->function);
-            if (!file_exists($functionFilePath)) {
-                $this->generator->generateFile(
-                    $functionFilePath,
-                    __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/postgresql_function.tpl.php',
-                    $params
+                $functionFilePath = $this->storageResolver->getFunctionSqlFilePathForNamespace(
+                    $namespace,
+                    $resolvedTrigger
                 );
-            }
+                if (!file_exists($functionFilePath)) {
+                    $this->generator->generateFile(
+                        $functionFilePath,
+                        __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/postgresql_function.tpl.php',
+                        $params
+                    );
+                }
 
+                $triggerTemplate = 'postgresql_trigger.tpl.php';
+
+                break;
+            case $this->databasePlatformResolver->isMySQL():
+                if (count($resolvedTrigger->events) > 1) {
+                    throw new \InvalidArgumentException('MySQL does not support multiple events for a single trigger.');
+                }
+
+                $params = [
+                    'trigger_name' => $resolvedTrigger->name,
+                    'table_name' => $resolvedTrigger->table,
+                    'when' => $resolvedTrigger->when,
+                    'events' => strtoupper($resolvedTrigger->events[0]),
+                ];
+
+                $triggerTemplate = 'mysql_trigger.tpl.php';
+
+                break;
+            case $this->databasePlatformResolver->isSQLServer():
+                if ($resolvedTrigger->when === 'BEFORE') {
+                    throw new \InvalidArgumentException('SQL Server does not support before event');
+                }
+
+                $params = [
+                    'trigger_name' => $resolvedTrigger->name,
+                    'table_name' => $resolvedTrigger->table,
+                    'when' => $resolvedTrigger->when,
+                    'events' => strtoupper($resolvedTrigger->events[0]),
+                ];
+
+                $triggerTemplate = 'sqlserver_trigger.tpl.php';
+
+                break;
+            default:
+                throw new \InvalidArgumentException('Unsupported database platform');
+        }
+
+        $this->generateFile(
+            $this->storageResolver->getTriggerSqlFilePathForNamespace($namespace, $resolvedTrigger),
+            $triggerTemplate,
+            $params
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    private function generateFile(string $path, string $template, array $params): void
+    {
+        try {
             $this->generator->generateFile(
-                sprintf('%s/triggers/%s.sql', $storageDirectory, $resolvedTrigger->name),
-                __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/postgresql_trigger.tpl.php',
+                $path,
+                __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/' . $template,
                 $params
             );
-
-        } elseif ($this->databasePlatformResolver->isMySQL()) {
-            if (count($resolvedTrigger->events) > 1) {
-                throw new \InvalidArgumentException('MySQL does not support multiple events for a single trigger.');
+        } catch (RuntimeCommandException $exception) {
+            if (str_contains($exception->getMessage(), 'already exists')) {
+                throw new TriggerSqlFileAlreadyExistsException($path);
             }
 
-            $params = [
-                'trigger_name' => $resolvedTrigger->name,
-                'table_name' => $resolvedTrigger->table,
-                'when' => $resolvedTrigger->when,
-                'events' => strtoupper($resolvedTrigger->events[0]),
-            ];
-
-            $triggerFilePath = sprintf('%s/%s.sql', $storageDirectory, $resolvedTrigger->name);
-
-            try {
-                $this->generator->generateFile(
-                    $triggerFilePath,
-                    __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/mysql_trigger.tpl.php',
-                    $params
-                );
-            } catch (RuntimeCommandException $exception) {
-                if (str_contains($exception->getMessage(), 'already exists')) {
-                    throw new TriggerSqlFileAlreadyExistsException($triggerFilePath);
-                }
-
-                throw $exception;
-            }
-        } elseif ($this->databasePlatformResolver->isSQLServer()) {
-            if ($resolvedTrigger->when === 'BEFORE') {
-                throw new \InvalidArgumentException('SQL Server does not support before event');
-            }
-
-            $params = [
-                'trigger_name' => $resolvedTrigger->name,
-                'table_name' => $resolvedTrigger->table,
-                'when' => $resolvedTrigger->when,
-                'events' => strtoupper($resolvedTrigger->events[0]),
-            ];
-
-            $triggerFilePath = sprintf('%s/%s.sql', $storageDirectory, $resolvedTrigger->name);
-
-            try {
-                $this->generator->generateFile(
-                    $triggerFilePath,
-                    __DIR__ . '/../Symfony/Maker/Resources/skeleton/sql/sqlserver_trigger.tpl.php',
-                    $params
-                );
-            } catch (RuntimeCommandException $exception) {
-                if (str_contains($exception->getMessage(), 'already exists')) {
-                    throw new TriggerSqlFileAlreadyExistsException($triggerFilePath);
-                }
-
-                throw $exception;
-            }
+            throw $exception;
         }
     }
 
@@ -223,7 +223,7 @@ final class TriggerCreator implements TriggerCreatorInterface
      *       }> $triggersForMigrationsPHP
      * @param array<int, ResolvedTrigger> $triggersForMigrationsSQL
      */
-    private function createMigration(array $triggersForMigrationsPHP, array $triggersForMigrationsSQL, ?StyleInterface $io = null): void
+    private function createMigration(string $namespace, array $triggersForMigrationsPHP, array $triggersForMigrationsSQL, ?StyleInterface $io = null): void
     {
         if (!class_exists('Doctrine\Migrations\DependencyFactory')) {
             if ($io) {
@@ -253,6 +253,7 @@ final class TriggerCreator implements TriggerCreatorInterface
 
         foreach ($triggersForMigrationsSQL as $resolvedTrigger) {
             $this->createMigrationFromSqlFiles(
+                $namespace,
                 $resolvedTrigger,
                 $upPhpCode,
                 $downPhpCode
@@ -287,9 +288,9 @@ final class TriggerCreator implements TriggerCreatorInterface
      * @param string[] $downPhpCode
      * @param string[] $upPhpCode
      */
-    private function createMigrationFromSqlFiles(ResolvedTrigger $resolvedTrigger, array &$upPhpCode, array &$downPhpCode): void
+    private function createMigrationFromSqlFiles(string $namespace, ResolvedTrigger $resolvedTrigger, array &$upPhpCode, array &$downPhpCode): void
     {
-        $storageDirectory = $this->storageResolver->getResolvedDirectory();
+        $storageDirectory = $this->storageResolver->getResolvedDirectory($namespace);
         $storageDirName = basename($storageDirectory);
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
@@ -342,5 +343,20 @@ final class TriggerCreator implements TriggerCreatorInterface
         if ($io) {
             $io->text('</>Generated new migration class to <info>' . basename($path) . '</>');
         }
+    }
+
+    private function getResolvedTriggerStorage(string $namespace, ResolvedTrigger $resolvedTrigger): string
+    {
+        if (null !== $resolvedTrigger->storage) {
+            $storage = Storage::tryFrom($resolvedTrigger->storage);
+
+            if ($storage === null) {
+                throw new \InvalidArgumentException("$resolvedTrigger->storage is not a valid storage, should be php or sql");
+            }
+
+            return $resolvedTrigger->storage;
+        }
+
+        return $this->storageResolver->getType($namespace);
     }
 }
