@@ -25,20 +25,9 @@ final readonly class StorageResolver implements StorageResolverInterface
     ) {
     }
 
-    public function getResolvedDirectory(string $namespace): string
+    public function getResolvedDirectoryForNamespace(string $namespace): string
     {
-        $directory = $this->getStorage($namespace)['directory'];
-
-        if (!str_starts_with($directory, '@')) {
-            return $directory;
-        }
-
-        return $this->fileLocator->locate($directory);
-    }
-
-    public function getResolvedNamespace(string $namespace): string
-    {
-        return $this->getStorage($namespace)['namespace'];
+        return $this->getResolvedDirectory($this->getStorage($namespace)['directory']);
     }
 
     public function getType(string $namespace): string
@@ -52,18 +41,64 @@ final readonly class StorageResolver implements StorageResolverInterface
             throw new \RuntimeException('Only PostgreSQL support functions file');
         }
 
-        return $this->getResolvedDirectory($namespace) . '/functions/' . $trigger->function . '.sql';
+        return $this->getResolvedDirectoryForNamespace($namespace) . '/functions/' . $trigger->function . '.sql';
     }
 
     public function getTriggerSqlFilePathForNamespace(string $namespace, ResolvedTrigger $trigger): string
     {
-        $directory = $this->getResolvedDirectory($namespace);
+        $directory = $this->getResolvedDirectoryForNamespace($namespace);
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
             return $directory . '/triggers/' . $trigger->name . '.sql';
         }
 
         return $directory . '/' . $trigger->function . '.sql';
+    }
+
+    public function guessFunctionSqlFilePath(ResolvedTrigger $trigger): string
+    {
+        if (!$this->databasePlatformResolver->isPostgreSQL()) {
+            throw new \RuntimeException('Only PostgreSQL support functions file');
+        }
+
+        foreach ($this->storages as $storage) {
+            $filePath = $this->getResolvedDirectory($storage['directory']) . '/functions/' . $trigger->function . '.sql';
+            if (file_exists($filePath)) {
+                return $filePath;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf('No function sql file found for trigger "%s"', $trigger->name));
+    }
+
+    public function getPossibleFunctionSqlFilePaths(ResolvedTrigger $trigger): array
+    {
+        $paths = [];
+
+        foreach ($this->storages as $storage) {
+            $paths[] = $this->getResolvedDirectory($storage['directory']) . '/functions/' . $trigger->function . '.sql';
+        }
+
+        return $paths;
+    }
+
+    public function guessTriggerSqlFilePath(ResolvedTrigger $trigger): string
+    {
+        foreach ($this->storages as $storage) {
+            $directory = $this->getResolvedDirectory($storage['directory']);
+
+            if ($this->databasePlatformResolver->isPostgreSQL()) {
+                $filePath = $directory . '/triggers/' . $trigger->name . '.sql';
+            } else {
+                $filePath = $directory . '/' . $trigger->name . '.sql';
+            }
+
+            if (file_exists($filePath)) {
+                return $filePath;
+            }
+        }
+
+        throw new \InvalidArgumentException(\sprintf('No triggers sql file found for trigger "%s"', $trigger->name));
     }
 
     public function getAvailableNamespaces(): array
@@ -83,5 +118,14 @@ final readonly class StorageResolver implements StorageResolverInterface
         }
 
         throw new \InvalidArgumentException(\sprintf('No storage found for namespace "%s"', $namespace));
+    }
+
+    private function getResolvedDirectory(string $directory): string
+    {
+        if (!str_starts_with($directory, '@')) {
+            return $directory;
+        }
+
+        return $this->fileLocator->locate($directory);
     }
 }

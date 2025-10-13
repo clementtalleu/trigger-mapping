@@ -81,7 +81,6 @@ final class TriggersSchemaUpdateCommand extends Command
         $io->progressStart(count($triggersToApply));
 
         foreach ($triggersToApply as $trigger) {
-            $io->progressAdvance();
             $io->writeln(sprintf(' > Processing trigger <info>%s</info>', $trigger->name));
 
             $queries = [];
@@ -123,23 +122,15 @@ final class TriggersSchemaUpdateCommand extends Command
             } else {
                 if ($trigger->function) {
                     try {
-                        $queries[] = file_get_contents($this->storageResolver->getFunctionSqlFilePath($trigger));
+                        $queries[] = file_get_contents($this->storageResolver->guessFunctionSqlFilePath($trigger));
                     } catch (\InvalidArgumentException) {
                         // No sql file, but it does not means the function doesn't exists, so just warning. It will crash if no function in DB
-                        $io->warning("No .sql file found for function $trigger->function");
+                        $pathsList = implode(', ', $this->storageResolver->getPossibleFunctionSqlFilePaths($trigger));
+                        $io->warning("No .sql file found for function $trigger->function, path could be: $pathsList");
                     }
-
-                    // $functionFilePath = sprintf('%s/functions/%s.sql', $dir, $trigger->function);
-                    // if (file_exists($functionFilePath)) {
-                    //     $queries[] = file_get_contents(sprintf('%s/functions/%s.sql', $dir, $trigger->function));
-                    // } else {
-                    //     // No sql file, but it does not means the function doesn't exists, so just warning. It will crash if no function in DB
-                    //     $io->warning("No .sql file found for function {$trigger->function}, path should be : $functionFilePath");
-                    // }
                 }
 
-                // $triggerFilePath = sprintf('%s/triggers/%s.sql', $dir, $trigger->name);
-                $triggerFilePath = $this->storageResolver->getTriggerSqlFilePath($trigger);
+                $triggerFilePath = $this->storageResolver->guessTriggerSqlFilePath($trigger);
                 if (!file_exists($triggerFilePath)) {
                     throw new CouldNotFindTriggerSqlFileException($triggerFilePath);
                 }
@@ -174,6 +165,8 @@ final class TriggersSchemaUpdateCommand extends Command
                     }
                 }
             }
+
+            $io->progressAdvance();
         }
 
         $io->progressFinish();

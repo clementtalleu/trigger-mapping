@@ -64,7 +64,6 @@ final class TriggerCreator implements TriggerCreatorInterface
     private function createTriggerClass(string $namespace, ResolvedTrigger $resolvedTrigger): ClassNameDetails
     {
         $className = Str::asClassName($resolvedTrigger->name);
-        $namespace = $this->storageResolver->getResolvedNamespace($namespace);
         $triggerClassNameDetails = $this->generator->createClassNameDetails(
             '\\' . $namespace . '\\' . $className,
             $namespace
@@ -290,7 +289,7 @@ final class TriggerCreator implements TriggerCreatorInterface
      */
     private function createMigrationFromSqlFiles(string $namespace, ResolvedTrigger $resolvedTrigger, array &$upPhpCode, array &$downPhpCode): void
     {
-        $storageDirectory = $this->storageResolver->getResolvedDirectory($namespace);
+        $storageDirectory = $this->storageResolver->getResolvedDirectoryForNamespace($namespace);
         $storageDirName = basename($storageDirectory);
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
