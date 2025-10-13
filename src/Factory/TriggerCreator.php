@@ -41,7 +41,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         $triggersForMigrationsSQL = [];
 
         foreach ($resolvedTriggers as $resolvedTrigger) {
-            if ($this->getResolvedTriggerStorage($namespace, $resolvedTrigger) === Storage::PHP_CLASSES->value) {
+            if ($resolvedTrigger->storage === Storage::PHP_CLASSES->value) {
                 $triggerClassDetails = $this->createTriggerClass($namespace, $resolvedTrigger);
                 $triggersForMigrationsPHP[] = [
                     'classDetails' => $triggerClassDetails,
@@ -342,20 +342,5 @@ final class TriggerCreator implements TriggerCreatorInterface
         if ($io) {
             $io->text('</>Generated new migration class to <info>' . basename($path) . '</>');
         }
-    }
-
-    private function getResolvedTriggerStorage(string $namespace, ResolvedTrigger $resolvedTrigger): string
-    {
-        if (null !== $resolvedTrigger->storage) {
-            $storage = Storage::tryFrom($resolvedTrigger->storage);
-
-            if ($storage === null) {
-                throw new \InvalidArgumentException("$resolvedTrigger->storage is not a valid storage, should be php or sql");
-            }
-
-            return $resolvedTrigger->storage;
-        }
-
-        return $this->storageResolver->getType($namespace);
     }
 }
