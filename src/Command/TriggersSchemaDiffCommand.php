@@ -79,9 +79,7 @@ final class TriggersSchemaDiffCommand extends Command
         $io->section('The following triggers are mapped but missing from the database:');
         $triggersToCreate = [];
         foreach ($missingTriggersKeysNames as $missingTriggerName) {
-            $trigger = $entitiesTriggers[$missingTriggerName];
-            $trigger->namespace = $namespace;
-            $triggersToCreate[] = $trigger;
+            $triggersToCreate[] = $entitiesTriggers[$missingTriggerName];
         }
 
         $listItems = [];
@@ -99,7 +97,7 @@ final class TriggersSchemaDiffCommand extends Command
             $io->newLine();
             $io->text('Applying changes and creating files...');
 
-            $this->triggerCreator->create(resolvedTriggers: $triggersToCreate, io: $io);
+            $this->triggerCreator->create(namespace: $namespace, resolvedTriggers: $triggersToCreate, io: $io);
 
             $io->success('Trigger files created successfully.');
         } else {
