@@ -12,6 +12,8 @@ interface StorageResolverInterface
 
     public function getType(string $namespace): string;
 
+    public function hasNamespace(string $namespace): bool;
+
     /**
      * @return list<string>
      */

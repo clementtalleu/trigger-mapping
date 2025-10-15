@@ -81,7 +81,7 @@ final class TriggersMappingUpdateCommand extends Command
             }
         }
 
-        $namespace = $this->getNamespace($this->storageResolver, $io, $input, $output);
+        $namespace = $this->getNamespace($this->storageResolver, $io, $input);
         $entitiesTriggersNames = array_keys($this->triggersMapping->extractTriggerMapping());
         $dbTriggers = $this->triggersDbExtractor->listTriggers();
         $dbTriggersKeys = array_keys($dbTriggers);

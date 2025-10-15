@@ -101,6 +101,11 @@ final readonly class StorageResolver implements StorageResolverInterface
         throw new \InvalidArgumentException(\sprintf('No triggers sql file found for trigger "%s"', $trigger->name));
     }
 
+    public function hasNamespace(string $namespace): bool
+    {
+        return \in_array($namespace, $this->getAvailableNamespaces(), true);
+    }
+
     public function getAvailableNamespaces(): array
     {
         return array_map(static fn (array $storage): string => $storage['namespace'], $this->storages);

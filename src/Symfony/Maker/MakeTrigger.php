@@ -17,15 +17,18 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Talleu\TriggerMapping\Attribute\Trigger;
+use Talleu\TriggerMapping\Command\WithNamespaceOptionTrait;
 use Talleu\TriggerMapping\Factory\MappingCreator;
 use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Talleu\TriggerMapping\Platform\DatabasePlatformResolver;
-use Talleu\TriggerMapping\Storage\Storage;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 
 final class MakeTrigger extends AbstractMaker
 {
+    use WithNamespaceOptionTrait;
+
     public static function getCommandName(): string
     {
         return 'make:trigger';
@@ -41,6 +44,7 @@ final class MakeTrigger extends AbstractMaker
         private DatabasePlatformResolver     $databasePlatformResolver,
         private TriggerCreatorInterface      $triggerCreator,
         private MappingCreator               $mappingCreator,
+        private StorageResolverInterface     $storageResolver,
         private bool                         $migrations,
     ) {
     }
@@ -70,12 +74,17 @@ final class MakeTrigger extends AbstractMaker
 
         $command
             ->addArgument('when', InputArgument::OPTIONAL, 'Trigger timing: "AFTER" or "BEFORE"')
-            ->addArgument('storage', InputArgument::OPTIONAL, 'Storage for the logic: "php" or "sql"')
             ->addOption(
                 'migration',
                 'm',
                 InputOption::VALUE_NONE,
                 'Create a Doctrine migration file for execute the trigger'
+            )
+            ->addOption(
+                'namespace',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'The namespace to use for the triggers (must be in the list of configured storages\' namespaces)',
             );
     }
 
@@ -89,6 +98,10 @@ final class MakeTrigger extends AbstractMaker
 
             $createMigration = $io->askQuestion($question);
             $input->setOption('migration', $createMigration);
+        }
+
+        if (!$input->getOption('namespace')) {
+            $input->setOption('namespace', $this->getNamespace($this->storageResolver, $io, $input));
         }
     }
 
@@ -120,11 +133,9 @@ final class MakeTrigger extends AbstractMaker
             throw new \InvalidArgumentException("{$input->getArgument('when')} is not a valid timing, should be one of : $allowedTimingsString");
         }
 
-        $allowedStorages = [Storage::PHP_CLASSES->value, Storage::SQL_FILES->value];
-        $storage = trim($input->getArgument('storage'));
-        if (!in_array($storage, $allowedStorages)) {
-            $allowedStoragesString = implode(',', $allowedStorages);
-            throw new \InvalidArgumentException("{$storage} is not a valid storage, should be one of : $allowedStoragesString");
+        $namespace = $input->getOption('namespace');
+        if (!$this->storageResolver->hasNamespace($namespace)) {
+            throw new \InvalidArgumentException("$namespace is not a valid namespace, should be one of : " . implode(', ', $this->storageResolver->getAvailableNamespaces()));
         }
 
         $resolvedTrigger = ResolvedTrigger::create(
@@ -133,12 +144,12 @@ final class MakeTrigger extends AbstractMaker
             events: $events,
             when: $when,
             scope: $scope,
-            storage: $storage,
+            storage: $this->storageResolver->getType($namespace),
             functionName: $functionName
         );
 
         $migration = $input->getOption('migration');
-        $triggersClassesDetails = $this->triggerCreator->create('', [$resolvedTrigger], $migration, $io);
+        $triggersClassesDetails = $this->triggerCreator->create($namespace, [$resolvedTrigger], $migration, $io);
         /** @var class-string|null $triggerClassFqcn */
         $triggerClassFqcn = !empty($triggersClassesDetails) ? $triggersClassesDetails[0]->getFullName() : null;
 

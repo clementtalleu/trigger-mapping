@@ -76,8 +76,8 @@ final class TriggersSchemaDiffCommand extends Command
             $io->note('Running in DRY-RUN mode. No files will be changed. Use the --apply option to execute changes.');
         }
 
-        $namespace = $this->getNamespace($this->storageResolver, $io, $input, $output);
-        $migrationsNamespace = $this->createMigrations ? $this->getMigrationsNamespace($io, $input, $output) : null;
+        $namespace = $this->getNamespace($this->storageResolver, $io, $input);
+        $migrationsNamespace = $this->createMigrations ? $this->getMigrationsNamespace($io, $input) : null;
         $entitiesTriggers = $this->triggersMapping->extractTriggerMapping();
         $entitiesTriggersNames = array_keys($entitiesTriggers);
         $dbTriggersNames = array_keys($this->triggersDbExtractor->listTriggers());
@@ -128,7 +128,7 @@ final class TriggersSchemaDiffCommand extends Command
         return Command::SUCCESS;
     }
 
-    protected function getMigrationsNamespace(SymfonyStyle $io, InputInterface $input, OutputInterface $output): string
+    protected function getMigrationsNamespace(SymfonyStyle $io, InputInterface $input): string
     {
         $namespace = $input->getOption('migration_namespace');
         if ($namespace === '') {
@@ -139,14 +139,13 @@ final class TriggersSchemaDiffCommand extends Command
         if ($namespace === null && count($dirs) === 1) {
             $namespace = key($dirs);
         } elseif ($namespace === null && count($dirs) > 1) {
-            /** @var QuestionHelper $helper */
-            $helper = $this->getHelper('question');
-            $question = new ChoiceQuestion(
-                'Please choose a namespace for migrations (defaults to the first one)',
-                array_keys($dirs),
-                0,
+            $namespace = $io->askQuestion(
+                new ChoiceQuestion(
+                    'Please choose a namespace for migrations (defaults to the first one)',
+                    array_keys($dirs),
+                    0,
+                )
             );
-            $namespace = $helper->ask($input, $output, $question);
             $io->text(\sprintf('You have selected the "%s" namespace', $namespace));
         }
 
