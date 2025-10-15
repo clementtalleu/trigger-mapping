@@ -18,6 +18,7 @@ interface TriggerCreatorInterface
         string $namespace,
         array $resolvedTriggers,
         ?bool $createMigrations = null,
-        ?StyleInterface $io = null
+        ?StyleInterface $io = null,
+        ?string $migrationsNamespace = null,
     ): array;
 }

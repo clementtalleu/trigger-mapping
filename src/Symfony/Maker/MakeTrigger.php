@@ -138,7 +138,7 @@ final class MakeTrigger extends AbstractMaker
         );
 
         $migration = $input->getOption('migration');
-        $triggersClassesDetails = $this->triggerCreator->create([$resolvedTrigger], $migration, $io);
+        $triggersClassesDetails = $this->triggerCreator->create('', [$resolvedTrigger], $migration, $io);
         /** @var class-string|null $triggerClassFqcn */
         $triggerClassFqcn = !empty($triggersClassesDetails) ? $triggersClassesDetails[0]->getFullName() : null;
 

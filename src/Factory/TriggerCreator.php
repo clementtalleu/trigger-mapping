@@ -10,6 +10,7 @@ use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Bundle\MakerBundle\Str;
 use Symfony\Bundle\MakerBundle\Util\ClassNameDetails;
 use Symfony\Component\Console\Style\StyleInterface;
+use Symfony\Component\Filesystem\Path;
 use Talleu\TriggerMapping\Exception\TriggerClassAlreadyExistsException;
 use Talleu\TriggerMapping\Exception\TriggerSqlFileAlreadyExistsException;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
@@ -35,7 +36,7 @@ final class TriggerCreator implements TriggerCreatorInterface
     /**
      * @inheritdoc
      */
-    public function create(string $namespace, array $resolvedTriggers, ?bool $createMigrations = null, ?StyleInterface $io = null): array
+    public function create(string $namespace, array $resolvedTriggers, ?bool $createMigrations = null, ?StyleInterface $io = null, ?string $migrationsNamespace = null): array
     {
         $triggersForMigrationsPHP = [];
         $triggersForMigrationsSQL = [];
@@ -55,7 +56,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         }
 
         if (true === $createMigrations || (null === $createMigrations && true === $this->migrations)) {
-            $this->createMigration($namespace, $triggersForMigrationsPHP, $triggersForMigrationsSQL, $io);
+            $this->createMigration($namespace, $triggersForMigrationsPHP, $triggersForMigrationsSQL, $io, $migrationsNamespace);
         }
 
         return $triggersClassesDetails ?? [];
@@ -222,7 +223,7 @@ final class TriggerCreator implements TriggerCreatorInterface
      *       }> $triggersForMigrationsPHP
      * @param array<int, ResolvedTrigger> $triggersForMigrationsSQL
      */
-    private function createMigration(string $namespace, array $triggersForMigrationsPHP, array $triggersForMigrationsSQL, ?StyleInterface $io = null): void
+    private function createMigration(string $namespace, array $triggersForMigrationsPHP, array $triggersForMigrationsSQL, ?StyleInterface $io = null, ?string $migrationsNamespace = null): void
     {
         if (!class_exists('Doctrine\Migrations\DependencyFactory')) {
             if ($io) {
@@ -255,11 +256,12 @@ final class TriggerCreator implements TriggerCreatorInterface
                 $namespace,
                 $resolvedTrigger,
                 $upPhpCode,
-                $downPhpCode
+                $downPhpCode,
+                $migrationsNamespace
             );
         }
 
-        $this->createMigrationFile($upPhpCode, $downPhpCode, $io);
+        $this->createMigrationFile($upPhpCode, $downPhpCode, $io, $migrationsNamespace);
     }
 
     /**
@@ -287,22 +289,22 @@ final class TriggerCreator implements TriggerCreatorInterface
      * @param string[] $downPhpCode
      * @param string[] $upPhpCode
      */
-    private function createMigrationFromSqlFiles(string $namespace, ResolvedTrigger $resolvedTrigger, array &$upPhpCode, array &$downPhpCode): void
+    private function createMigrationFromSqlFiles(string $namespace, ResolvedTrigger $resolvedTrigger, array &$upPhpCode, array &$downPhpCode, ?string $migrationsNamespace = null): void
     {
-        $storageDirectory = $this->storageResolver->getResolvedDirectoryForNamespace($namespace);
-        $storageDirName = basename($storageDirectory);
+        $migrationPath = $this->getMigrationPath($migrationsNamespace);
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
-            $functionRelativePath = sprintf('/../%s/functions/%s.sql', $storageDirName, $resolvedTrigger->function);
-            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'' . $functionRelativePath . '\'));';
-            $triggerRelativePath = sprintf('/../%s/triggers/%s.sql', $storageDirName, $resolvedTrigger->name);
-            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'' . $triggerRelativePath . '\'));';
+            $functionPath = $this->storageResolver->getFunctionSqlFilePathForNamespace($namespace, $resolvedTrigger);
+            $functionRelativePath = Path::makeRelative($functionPath, $migrationPath);
+            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'/' . $functionRelativePath . '\'));';
         } else {
-            // First we have to drop the trigger if exists (only in MySQL mode, in postgre we "create or replace")
+            // First we have to drop the trigger if exists (only in MySQL mode, in postgres we "create or replace")
             $upPhpCode[] = '$this->addSql("DROP TRIGGER IF EXISTS ' . $resolvedTrigger->name . ';");';
-            $triggerRelativePath = sprintf('/../%s/%s.sql', $storageDirName, $resolvedTrigger->name);
-            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'' . $triggerRelativePath . '\'));';
         }
+
+        $triggerPath = $this->storageResolver->getTriggerSqlFilePathForNamespace($namespace, $resolvedTrigger);
+        $triggerRelativePath = Path::makeRelative($triggerPath, $migrationPath);
+        $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'/' . $triggerRelativePath . '\'));';
 
         $downPhpCode = [];
         $downPhpCode[] = '// Reverting this migration will drop the trigger and function.';
@@ -320,27 +322,37 @@ final class TriggerCreator implements TriggerCreatorInterface
      * @param string[] $downPhpCode
      * @param string[] $upPhpCode
      */
-    private function createMigrationFile(array $upPhpCode, array $downPhpCode, ?StyleInterface $io = null): void
+    private function createMigrationFile(array $upPhpCode, array $downPhpCode, ?StyleInterface $io = null, ?string $namespace = null): void
     {
         $migrationGenerator = $this->dependencyFactory->getMigrationGenerator();
-
-        $configuration = $this->dependencyFactory->getConfiguration();
-        $dirs = $configuration->getMigrationDirectories();
-
-        if (count($dirs) === 1) {
-            $namespace = key($dirs);
-        } else {
-            $namespace = 'DoctrineMigrations';
-        }
-
         $up = implode("\n", $upPhpCode);
         $down = implode("\n", $downPhpCode);
 
-        $className = $this->dependencyFactory->getClassNameGenerator()->generateClassName($namespace);
+        $className = $this->dependencyFactory->getClassNameGenerator()->generateClassName($namespace ?? $this->getDefaultMigrationNamespace());
         $path = $migrationGenerator->generateMigration($className, $up, $down);
 
         if ($io) {
             $io->text('</>Generated new migration class to <info>' . basename($path) . '</>');
         }
+    }
+
+    private function getMigrationPath(?string $namespace = null): string
+    {
+        $configuration = $this->dependencyFactory->getConfiguration();
+        $dirs = $configuration->getMigrationDirectories();
+
+        return $dirs[$namespace ?? $this->getDefaultMigrationNamespace()];
+    }
+
+    private function getDefaultMigrationNamespace(): string
+    {
+        $configuration = $this->dependencyFactory->getConfiguration();
+        $dirs = $configuration->getMigrationDirectories();
+
+        if (count($dirs) === 1) {
+            return key($dirs);
+        }
+
+        return 'DoctrineMigrations';
     }
 }

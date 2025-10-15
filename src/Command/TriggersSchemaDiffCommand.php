@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Talleu\TriggerMapping\Command;
 
+use Doctrine\Migrations\Configuration\Configuration;
 use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ChoiceQuestion;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractorInterface;
 use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
@@ -32,6 +35,8 @@ final class TriggersSchemaDiffCommand extends Command
         private readonly TriggerCreatorInterface      $triggerCreator,
         private readonly Generator                    $generator,
         private readonly StorageResolverInterface     $storageResolver,
+        private readonly Configuration                $migrationsConfiguration,
+        private readonly bool                         $createMigrations,
     ) {
         parent::__construct();
     }
@@ -51,6 +56,13 @@ final class TriggersSchemaDiffCommand extends Command
             InputOption::VALUE_REQUIRED,
             'The namespace to use for the triggers (must be in the list of configured storages\' namespaces)',
         );
+
+        $this->addOption(
+            'migration_namespace',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'The namespace to use for the migration (must be in the list of configured namespaces)',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -65,6 +77,7 @@ final class TriggersSchemaDiffCommand extends Command
         }
 
         $namespace = $this->getNamespace($this->storageResolver, $io, $input, $output);
+        $migrationsNamespace = $this->createMigrations ? $this->getMigrationsNamespace($io, $input, $output) : null;
         $entitiesTriggers = $this->triggersMapping->extractTriggerMapping();
         $entitiesTriggersNames = array_keys($entitiesTriggers);
         $dbTriggersNames = array_keys($this->triggersDbExtractor->listTriggers());
@@ -97,7 +110,12 @@ final class TriggersSchemaDiffCommand extends Command
             $io->newLine();
             $io->text('Applying changes and creating files...');
 
-            $this->triggerCreator->create(namespace: $namespace, resolvedTriggers: $triggersToCreate, io: $io);
+            $this->triggerCreator->create(
+                namespace: $namespace,
+                resolvedTriggers: $triggersToCreate,
+                io: $io,
+                migrationsNamespace: $migrationsNamespace
+            );
 
             $io->success('Trigger files created successfully.');
         } else {
@@ -108,5 +126,36 @@ final class TriggersSchemaDiffCommand extends Command
         $this->generator->writeChanges();
 
         return Command::SUCCESS;
+    }
+
+    protected function getMigrationsNamespace(SymfonyStyle $io, InputInterface $input, OutputInterface $output): string
+    {
+        $namespace = $input->getOption('migration_namespace');
+        if ($namespace === '') {
+            $namespace = null;
+        }
+
+        $dirs = $this->migrationsConfiguration->getMigrationDirectories();
+        if ($namespace === null && count($dirs) === 1) {
+            $namespace = key($dirs);
+        } elseif ($namespace === null && count($dirs) > 1) {
+            /** @var QuestionHelper $helper */
+            $helper = $this->getHelper('question');
+            $question = new ChoiceQuestion(
+                'Please choose a namespace for migrations (defaults to the first one)',
+                array_keys($dirs),
+                0,
+            );
+            $namespace = $helper->ask($input, $output, $question);
+            $io->text(\sprintf('You have selected the "%s" namespace', $namespace));
+        }
+
+        if (!isset($dirs[$namespace])) {
+            throw new \InvalidArgumentException(\sprintf('Path not defined for the namespace "%s"', $namespace));
+        }
+
+        assert(is_string($namespace));
+
+        return $namespace;
     }
 }

@@ -12,6 +12,8 @@
             <argument type="service" id="trigger_mapping.factory.trigger_creator"/>
             <argument type="service" id="maker.generator" />
             <argument type="service" id="trigger_mapping.storage_resolver"/>
+            <argument type="service" id="doctrine.migrations.configuration"/>
+            <argument>%trigger_mapping.migrations%</argument>
             <tag name="console.command" />
         </service>
 
