@@ -8,6 +8,9 @@ use Talleu\TriggerMapping\Model\ResolvedTrigger;
 
 interface StorageResolverInterface
 {
+    /**
+     * @return value-of<Storage>
+     */
     public function getType(string $name): string;
 
     public function getNamespace(string $name): string;

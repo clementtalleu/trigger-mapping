@@ -12,7 +12,7 @@ use Talleu\TriggerMapping\Platform\DatabasePlatformResolverInterface;
  * @phpstan-type StorageConfiguration = array{
  *     directory: string,
  *     namespace?: string,
- *     type: string,
+ *     type: value-of<Storage>,
  *  }
  */
 final readonly class StorageResolver implements StorageResolverInterface

@@ -18,8 +18,6 @@ final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactor
     {
         if (null !== $attribute->storage && null !== Storage::tryFrom($attribute->storage)) {
             $storage = $attribute->storage;
-        } elseif (null !== $attribute->storage && null === Storage::tryFrom($attribute->storage)) {
-            throw new \InvalidArgumentException("{$attribute->storage} is not a valid storage, should be php or sql");
         } else {
             $storage = null;
         }
