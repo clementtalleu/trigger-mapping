@@ -28,17 +28,10 @@
         <service id="trigger_mapping.factory.trigger_definition_factory"
                  class="Talleu\TriggerMapping\Factory\TriggerDefinitionFactory"
                  autowire="true" autoconfigure="true">
-            <argument type="service" id="trigger_mapping.storage_resolver"/>
         </service>
 
         <service id="trigger_mapping.platform_resolver" class="Talleu\TriggerMapping\Platform\DatabasePlatformResolver">
             <argument type="service" id="doctrine.dbal.default_connection" />
-        </service>
-
-        <service id="trigger_mapping.storage_resolver" class="Talleu\TriggerMapping\Storage\StorageResolver">
-            <argument>%trigger_mapping.storage.type%</argument>
-            <argument>%trigger_mapping.storage.directory%</argument>
-            <argument>%trigger_mapping.storage.namespace%</argument>
         </service>
 
         <service id="trigger_mapping.command.schema_update" class="Talleu\TriggerMapping\Command\TriggersSchemaUpdateCommand">

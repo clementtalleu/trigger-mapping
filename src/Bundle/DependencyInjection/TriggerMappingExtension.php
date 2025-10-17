@@ -7,9 +7,12 @@ namespace Talleu\TriggerMapping\Bundle\DependencyInjection;
 use Symfony\Bundle\MakerBundle\Maker\AbstractMaker;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
+use Symfony\Component\DependencyInjection\Reference;
 use Talleu\TriggerMapping\Storage\Storage;
+use Talleu\TriggerMapping\Storage\StorageResolver;
 
 final class TriggerMappingExtension extends Extension
 {
@@ -26,20 +29,26 @@ final class TriggerMappingExtension extends Extension
             $loader->load('maker.xml');
         }
 
-        if (null === Storage::tryFrom($config['storage']['type'])) {
-            throw new \InvalidArgumentException(
-                sprintf(
-                    'Invalid storage type "%s". Allowed values are: %s',
-                    $config['storage']['type'],
-                    implode(', ', array_column(Storage::cases(), 'value'))
-                )
-            );
+        foreach ($config['storages'] as $storage) {
+            // Validate storage type
+            if (null === Storage::tryFrom($storage['type'])) {
+                throw new \InvalidArgumentException(
+                    sprintf(
+                        'Invalid storage type "%s". Allowed values are: %s',
+                        $storage['type'],
+                        implode(', ', array_column(Storage::cases(), 'value'))
+                    )
+                );
+            }
         }
 
-        $container->setParameter('trigger_mapping.storage.type', $config['storage']['type']);
-        $container->setParameter('trigger_mapping.storage.directory', $config['storage']['directory']);
+        $definition = new Definition(
+            StorageResolver::class,
+            [$config['storages'], new Reference('trigger_mapping.platform_resolver'), new Reference('file_locator')]
+        );
+        $container->setDefinition('trigger_mapping.storage_resolver', $definition);
+
         $container->setParameter('trigger_mapping.migrations', $config['migrations']);
-        $container->setParameter('trigger_mapping.storage.namespace', $config['storage']['namespace']);
 
         // Exclude triggers from mapping or validation
         $excludes = $config['excludes'];

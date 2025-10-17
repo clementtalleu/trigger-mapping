@@ -17,15 +17,18 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Talleu\TriggerMapping\Attribute\Trigger;
+use Talleu\TriggerMapping\Command\WithStorageOptionTrait;
 use Talleu\TriggerMapping\Factory\MappingCreator;
 use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Talleu\TriggerMapping\Platform\DatabasePlatformResolver;
-use Talleu\TriggerMapping\Storage\Storage;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 
 final class MakeTrigger extends AbstractMaker
 {
+    use WithStorageOptionTrait;
+
     public static function getCommandName(): string
     {
         return 'make:trigger';
@@ -41,6 +44,7 @@ final class MakeTrigger extends AbstractMaker
         private DatabasePlatformResolver     $databasePlatformResolver,
         private TriggerCreatorInterface      $triggerCreator,
         private MappingCreator               $mappingCreator,
+        private StorageResolverInterface     $storageResolver,
         private bool                         $migrations,
     ) {
     }
@@ -70,12 +74,17 @@ final class MakeTrigger extends AbstractMaker
 
         $command
             ->addArgument('when', InputArgument::OPTIONAL, 'Trigger timing: "AFTER" or "BEFORE"')
-            ->addArgument('storage', InputArgument::OPTIONAL, 'Storage for the logic: "php" or "sql"')
             ->addOption(
                 'migration',
                 'm',
                 InputOption::VALUE_NONE,
                 'Create a Doctrine migration file for execute the trigger'
+            )
+            ->addOption(
+                'storage',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'The storage to use for the triggers',
             );
     }
 
@@ -89,6 +98,10 @@ final class MakeTrigger extends AbstractMaker
 
             $createMigration = $io->askQuestion($question);
             $input->setOption('migration', $createMigration);
+        }
+
+        if (!$input->getOption('storage')) {
+            $input->setOption('storage', $this->getStorage($this->storageResolver, $io, $input));
         }
     }
 
@@ -120,11 +133,9 @@ final class MakeTrigger extends AbstractMaker
             throw new \InvalidArgumentException("{$input->getArgument('when')} is not a valid timing, should be one of : $allowedTimingsString");
         }
 
-        $allowedStorages = [Storage::PHP_CLASSES->value, Storage::SQL_FILES->value];
-        $storage = trim($input->getArgument('storage'));
-        if (!in_array($storage, $allowedStorages)) {
-            $allowedStoragesString = implode(',', $allowedStorages);
-            throw new \InvalidArgumentException("{$storage} is not a valid storage, should be one of : $allowedStoragesString");
+        $storage = $input->getOption('storage');
+        if (!$this->storageResolver->hasStorage($storage)) {
+            throw new \InvalidArgumentException("$storage is not a valid storage, should be one of : " . implode(', ', $this->storageResolver->getAvailableStorages()));
         }
 
         $resolvedTrigger = ResolvedTrigger::create(
@@ -133,12 +144,11 @@ final class MakeTrigger extends AbstractMaker
             events: $events,
             when: $when,
             scope: $scope,
-            storage: $storage,
             functionName: $functionName
         );
 
         $migration = $input->getOption('migration');
-        $triggersClassesDetails = $this->triggerCreator->create([$resolvedTrigger], $migration, $io);
+        $triggersClassesDetails = $this->triggerCreator->create($storage, [$resolvedTrigger], $migration, $io);
         /** @var class-string|null $triggerClassFqcn */
         $triggerClassFqcn = !empty($triggersClassesDetails) ? $triggersClassesDetails[0]->getFullName() : null;
 

@@ -22,6 +22,8 @@ use Talleu\TriggerMapping\Utils\EntityFinder;
 #[AsCommand(name: 'triggers:mapping:update', description: 'Update the entities mapping from the current database triggers', aliases: ['t:m:u'])]
 final class TriggersMappingUpdateCommand extends Command
 {
+    use WithStorageOptionTrait;
+
     public function __construct(
         private readonly TriggersMappingInterface     $triggersMapping,
         private readonly TriggersDbExtractorInterface $triggersDbExtractor,
@@ -49,6 +51,13 @@ final class TriggersMappingUpdateCommand extends Command
             InputOption::VALUE_NONE,
             'Create dedicated files with content from the database.'
         );
+
+        $this->addOption(
+            'storage',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'The storage to use for the triggers',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -72,6 +81,7 @@ final class TriggersMappingUpdateCommand extends Command
             }
         }
 
+        $storage = $this->getStorage($this->storageResolver, $io, $input);
         $entitiesTriggersNames = array_keys($this->triggersMapping->extractTriggerMapping());
         $dbTriggers = $this->triggersDbExtractor->listTriggers();
         $dbTriggersKeys = array_keys($dbTriggers);
@@ -118,7 +128,6 @@ final class TriggersMappingUpdateCommand extends Command
                     events: $dbTriggerMissing['events'],
                     when: $dbTriggerMissing['when'],
                     scope: $dbTriggerMissing['scope'],
-                    storage: $this->storageResolver->getType(),
                     functionName: $dbTriggerMissing['function'],
                     definition: $dbTriggerMissing['definition'],
                     content: $dbTriggerMissing['content']
@@ -126,7 +135,7 @@ final class TriggersMappingUpdateCommand extends Command
 
                 $triggerClassFqcn = null;
                 if ($isCreateFiles) {
-                    $triggersClassesDetails = $this->triggerCreator->create([$resolvedTrigger], false, $io);
+                    $triggersClassesDetails = $this->triggerCreator->create($storage, [$resolvedTrigger], false, $io);
                     $triggerClassFqcn = !empty($triggersClassesDetails) ? $triggersClassesDetails[0]->getFullName() : null;
                     $this->generator->writeChanges();
                 }

@@ -16,23 +16,55 @@ class Configuration implements ConfigurationInterface
 
         $rootNode = $treeBuilder->getRootNode();
         $rootNode
+            ->fixXmlConfig('storage', 'storages')
             ->children()
-                ->arrayNode('storage')
-                    ->addDefaultsIfNotSet()
+                ->arrayNode('storages')
+                    ->beforeNormalization()
+                        ->always(static function ($v) {
+                            foreach ($v as $key => $value) {
+                                if (!isset($value['name'])) {
+                                    $v[$key]['name'] = \is_int($key) ? 'default' : $key;
+                                }
+                            }
+
+                            return $v;
+                        })
+                    ->end()
+                    ->addDefaultChildrenIfNoneSet('default')
+                    ->useAttributeAsKey('name')
+                    ->arrayPrototype()
                         ->children()
+                            ->scalarNode('name')
+                                ->cannotBeEmpty()
+                                ->info('The name of the storage.')
+                            ->end()
                             ->enumNode('type')
-                            ->values([Storage::SQL_FILES->value, Storage::PHP_CLASSES->value])
-                            ->defaultValue(Storage::PHP_CLASSES->value)
-                            ->info('Determines whether triggers are stored in SQL (.sql files) or PHP (static functions).')
+                                ->cannotBeEmpty()
+                                ->values([Storage::SQL_FILES->value, Storage::PHP_CLASSES->value])
+                                ->defaultValue(Storage::PHP_CLASSES->value)
+                                ->info('Determines whether triggers are stored in SQL (.sql files) or PHP (static functions).')
+                            ->end()
+                            ->scalarNode('namespace')
+                                ->cannotBeEmpty()
+                                ->defaultValue('App\\Triggers')
+                                ->info('Determines the namespace for triggers classes.')
+                            ->end()
+                            ->scalarNode('directory')
+                                ->cannotBeEmpty()
+                                ->defaultValue('%kernel.project_dir%/triggers')
+                                ->info('Directory where triggers/functions are stored, depending on the selected type.')
+                            ->end()
                         ->end()
-                        ->scalarNode('namespace')
-                            ->cannotBeEmpty()
-                            ->defaultValue('App\\Triggers')
-                            ->info('Determines the namespace for triggers classes.')
-                        ->end()
-                        ->scalarNode('directory')
-                            ->defaultValue('%kernel.project_dir%/triggers')
-                            ->info('Directory where triggers/functions are stored, depending on the selected type.')
+                        ->validate()
+                            ->always(static function (array $v): array {
+                                $type = $v['type'] ?? Storage::PHP_CLASSES->value;
+
+                                if ($type === Storage::SQL_FILES->value) {
+                                    unset($v['namespace']);
+                                }
+
+                                return $v;
+                            })
                         ->end()
                     ->end()
                 ->end()

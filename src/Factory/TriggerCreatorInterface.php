@@ -14,5 +14,11 @@ interface TriggerCreatorInterface
      * @param ResolvedTrigger[] $resolvedTriggers
      * @return ClassNameDetails[]
      */
-    public function create(array $resolvedTriggers, ?bool $createMigrations = null, ?StyleInterface $io = null): array;
+    public function create(
+        string $storage,
+        array $resolvedTriggers,
+        ?bool $createMigrations = null,
+        ?StyleInterface $io = null,
+        ?string $migrationsNamespace = null,
+    ): array;
 }
