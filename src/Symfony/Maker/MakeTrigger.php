@@ -17,7 +17,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Talleu\TriggerMapping\Attribute\Trigger;
-use Talleu\TriggerMapping\Command\WithNamespaceOptionTrait;
+use Talleu\TriggerMapping\Command\WithStorageOptionTrait;
 use Talleu\TriggerMapping\Factory\MappingCreator;
 use Talleu\TriggerMapping\Factory\TriggerCreatorInterface;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
@@ -27,7 +27,7 @@ use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 
 final class MakeTrigger extends AbstractMaker
 {
-    use WithNamespaceOptionTrait;
+    use WithStorageOptionTrait;
 
     public static function getCommandName(): string
     {
@@ -81,10 +81,10 @@ final class MakeTrigger extends AbstractMaker
                 'Create a Doctrine migration file for execute the trigger'
             )
             ->addOption(
-                'namespace',
+                'storage',
                 null,
                 InputOption::VALUE_REQUIRED,
-                'The namespace to use for the triggers (must be in the list of configured storages\' namespaces)',
+                'The storage to use for the triggers',
             );
     }
 
@@ -100,8 +100,8 @@ final class MakeTrigger extends AbstractMaker
             $input->setOption('migration', $createMigration);
         }
 
-        if (!$input->getOption('namespace')) {
-            $input->setOption('namespace', $this->getNamespace($this->storageResolver, $io, $input));
+        if (!$input->getOption('storage')) {
+            $input->setOption('storage', $this->getStorage($this->storageResolver, $io, $input));
         }
     }
 
@@ -133,9 +133,9 @@ final class MakeTrigger extends AbstractMaker
             throw new \InvalidArgumentException("{$input->getArgument('when')} is not a valid timing, should be one of : $allowedTimingsString");
         }
 
-        $namespace = $input->getOption('namespace');
-        if (!$this->storageResolver->hasNamespace($namespace)) {
-            throw new \InvalidArgumentException("$namespace is not a valid namespace, should be one of : " . implode(', ', $this->storageResolver->getAvailableNamespaces()));
+        $storage = $input->getOption('storage');
+        if (!$this->storageResolver->hasStorage($storage)) {
+            throw new \InvalidArgumentException("$storage is not a valid storage, should be one of : " . implode(', ', $this->storageResolver->getAvailableStorages()));
         }
 
         $resolvedTrigger = ResolvedTrigger::create(
@@ -144,12 +144,11 @@ final class MakeTrigger extends AbstractMaker
             events: $events,
             when: $when,
             scope: $scope,
-            storage: $this->storageResolver->getType($namespace),
             functionName: $functionName
         );
 
         $migration = $input->getOption('migration');
-        $triggersClassesDetails = $this->triggerCreator->create($namespace, [$resolvedTrigger], $migration, $io);
+        $triggersClassesDetails = $this->triggerCreator->create($storage, [$resolvedTrigger], $migration, $io);
         /** @var class-string|null $triggerClassFqcn */
         $triggerClassFqcn = !empty($triggersClassesDetails) ? $triggersClassesDetails[0]->getFullName() : null;
 

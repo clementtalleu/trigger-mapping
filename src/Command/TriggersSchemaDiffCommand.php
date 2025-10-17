@@ -8,7 +8,6 @@ use Doctrine\Migrations\Configuration\Configuration;
 use Symfony\Bundle\MakerBundle\Generator;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -27,7 +26,7 @@ use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 )]
 final class TriggersSchemaDiffCommand extends Command
 {
-    use WithNamespaceOptionTrait;
+    use WithStorageOptionTrait;
 
     public function __construct(
         private readonly TriggersMappingInterface     $triggersMapping,
@@ -51,14 +50,14 @@ final class TriggersSchemaDiffCommand extends Command
         );
 
         $this->addOption(
-            'namespace',
+            'storage',
             null,
             InputOption::VALUE_REQUIRED,
-            'The namespace to use for the triggers (must be in the list of configured storages\' namespaces)',
+            'The storage to use for the triggers',
         );
 
         $this->addOption(
-            'migration_namespace',
+            'namespace',
             null,
             InputOption::VALUE_REQUIRED,
             'The namespace to use for the migration (must be in the list of configured namespaces)',
@@ -76,7 +75,7 @@ final class TriggersSchemaDiffCommand extends Command
             $io->note('Running in DRY-RUN mode. No files will be changed. Use the --apply option to execute changes.');
         }
 
-        $namespace = $this->getNamespace($this->storageResolver, $io, $input);
+        $storage = $this->getStorage($this->storageResolver, $io, $input);
         $migrationsNamespace = $this->createMigrations ? $this->getMigrationsNamespace($io, $input) : null;
         $entitiesTriggers = $this->triggersMapping->extractTriggerMapping();
         $entitiesTriggersNames = array_keys($entitiesTriggers);
@@ -105,13 +104,13 @@ final class TriggersSchemaDiffCommand extends Command
             );
         }
         $io->listing($listItems);
+        $io->newLine();
 
         if ($isApplyMode) {
-            $io->newLine();
             $io->text('Applying changes and creating files...');
 
             $this->triggerCreator->create(
-                namespace: $namespace,
+                storage: $storage,
                 resolvedTriggers: $triggersToCreate,
                 io: $io,
                 migrationsNamespace: $migrationsNamespace
@@ -119,7 +118,6 @@ final class TriggersSchemaDiffCommand extends Command
 
             $io->success('Trigger files created successfully.');
         } else {
-            $io->newLine();
             $io->info('To create these files, re-run the command with the --apply option.');
         }
 
@@ -130,7 +128,7 @@ final class TriggersSchemaDiffCommand extends Command
 
     protected function getMigrationsNamespace(SymfonyStyle $io, InputInterface $input): string
     {
-        $namespace = $input->getOption('migration_namespace');
+        $namespace = $input->getOption('namespace');
         if ($namespace === '') {
             $namespace = null;
         }
@@ -141,7 +139,7 @@ final class TriggersSchemaDiffCommand extends Command
         } elseif ($namespace === null && count($dirs) > 1) {
             $namespace = $io->askQuestion(
                 new ChoiceQuestion(
-                    'Please choose a namespace for migrations (defaults to the first one)',
+                    'Please choose a namespace (defaults to the first one)',
                     array_keys($dirs),
                     0,
                 )

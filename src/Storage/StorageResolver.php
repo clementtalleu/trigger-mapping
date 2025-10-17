@@ -11,42 +11,52 @@ use Talleu\TriggerMapping\Platform\DatabasePlatformResolverInterface;
 /**
  * @phpstan-type StorageConfiguration = array{
  *     directory: string,
- *     namespace: string,
+ *     namespace?: string,
  *     type: string,
  *  }
  */
 final readonly class StorageResolver implements StorageResolverInterface
 {
     public function __construct(
-        /** @phpstan-var list<StorageConfiguration> */
+        /** @phpstan-var array<string, StorageConfiguration> */
         private array $storages,
         private DatabasePlatformResolverInterface $databasePlatformResolver,
         private FileLocatorInterface $fileLocator,
     ) {
     }
 
-    public function getResolvedDirectoryForNamespace(string $namespace): string
+    public function getType(string $name): string
     {
-        return $this->getResolvedDirectory($this->getStorage($namespace)['directory']);
+        return $this->getStorage($name)['type'];
     }
 
-    public function getType(string $namespace): string
+    public function getNamespace(string $name): string
     {
-        return $this->getStorage($namespace)['type'];
+        $storage = $this->getStorage($name);
+
+        if (Storage::PHP_CLASSES->value !== $storage['type']) {
+            throw new \LogicException('Only PHP classes storage supports namespaces');
+        }
+
+        if (!isset($storage['namespace'])) {
+            throw new \LogicException('PHP classes storage requires a namespace');
+        }
+
+        return $storage['namespace'];
     }
 
-    public function getFunctionSqlFilePathForNamespace(string $namespace, ResolvedTrigger $trigger): string
+    public function getFunctionSqlFilePath(string $name, ResolvedTrigger $trigger): string
     {
         if (!$this->databasePlatformResolver->isPostgreSQL()) {
             throw new \RuntimeException('Only PostgreSQL support functions file');
         }
 
-        return $this->getResolvedDirectoryForNamespace($namespace) . '/functions/' . $trigger->function . '.sql';
+        return $this->getStorageResolvedDirectory($name) . '/functions/' . $trigger->function . '.sql';
     }
 
-    public function getTriggerSqlFilePathForNamespace(string $namespace, ResolvedTrigger $trigger): string
+    public function getTriggerSqlFilePath(string $name, ResolvedTrigger $trigger): string
     {
-        $directory = $this->getResolvedDirectoryForNamespace($namespace);
+        $directory = $this->getStorageResolvedDirectory($name);
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
             return $directory . '/triggers/' . $trigger->name . '.sql';
@@ -62,7 +72,9 @@ final readonly class StorageResolver implements StorageResolverInterface
         }
 
         foreach ($this->storages as $storage) {
-            $filePath = $this->getResolvedDirectory($storage['directory']) . '/functions/' . $trigger->function . '.sql';
+            $filePath = $this->getResolvedDirectory(
+                    $storage['directory']
+                ) . '/functions/' . $trigger->function . '.sql';
             if (file_exists($filePath)) {
                 return $filePath;
             }
@@ -101,28 +113,33 @@ final readonly class StorageResolver implements StorageResolverInterface
         throw new \InvalidArgumentException(\sprintf('No triggers sql file found for trigger "%s"', $trigger->name));
     }
 
-    public function hasNamespace(string $namespace): bool
+    public function hasStorage(string $name): bool
     {
-        return \in_array($namespace, $this->getAvailableNamespaces(), true);
+        return \in_array($name, $this->getAvailableStorages(), true);
     }
 
-    public function getAvailableNamespaces(): array
+    public function getAvailableStorages(): array
     {
-        return array_map(static fn (array $storage): string => $storage['namespace'], $this->storages);
+        return array_keys($this->storages);
     }
 
     /**
      * @phpstan-return StorageConfiguration
      */
-    private function getStorage(string $namespace): array
+    private function getStorage(string $name): array
     {
-        foreach ($this->storages as $storage) {
-            if ($namespace === $storage['namespace']) {
+        foreach ($this->storages as $storageName => $storage) {
+            if ($storageName === $name) {
                 return $storage;
             }
         }
 
-        throw new \InvalidArgumentException(\sprintf('No storage found for namespace "%s"', $namespace));
+        throw new \InvalidArgumentException(\sprintf('No storage named "%s" found', $name));
+    }
+
+    private function getStorageResolvedDirectory(string $name): string
+    {
+        return $this->getResolvedDirectory($this->getStorage($name)['directory']);
     }
 
     private function getResolvedDirectory(string $directory): string

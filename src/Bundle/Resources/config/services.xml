@@ -28,7 +28,6 @@
         <service id="trigger_mapping.factory.trigger_definition_factory"
                  class="Talleu\TriggerMapping\Factory\TriggerDefinitionFactory"
                  autowire="true" autoconfigure="true">
-            <argument type="service" id="trigger_mapping.storage_resolver"/>
         </service>
 
         <service id="trigger_mapping.platform_resolver" class="Talleu\TriggerMapping\Platform\DatabasePlatformResolver">

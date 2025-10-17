@@ -8,20 +8,20 @@ use Talleu\TriggerMapping\Model\ResolvedTrigger;
 
 interface StorageResolverInterface
 {
-    public function getResolvedDirectoryForNamespace(string $namespace): string;
+    public function getType(string $name): string;
 
-    public function getType(string $namespace): string;
+    public function getNamespace(string $name): string;
 
-    public function hasNamespace(string $namespace): bool;
+    public function hasStorage(string $name): bool;
 
     /**
      * @return list<string>
      */
-    public function getAvailableNamespaces(): array;
+    public function getAvailableStorages(): array;
 
-    public function getFunctionSqlFilePathForNamespace(string $namespace, ResolvedTrigger $trigger): string;
+    public function getFunctionSqlFilePath(string $name, ResolvedTrigger $trigger): string;
 
-    public function getTriggerSqlFilePathForNamespace(string $namespace, ResolvedTrigger $trigger): string;
+    public function getTriggerSqlFilePath(string $name, ResolvedTrigger $trigger): string;
 
     public function guessFunctionSqlFilePath(ResolvedTrigger $trigger): string;
 

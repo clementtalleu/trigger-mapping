@@ -15,7 +15,7 @@ interface TriggerCreatorInterface
      * @return ClassNameDetails[]
      */
     public function create(
-        string $namespace,
+        string $storage,
         array $resolvedTriggers,
         ?bool $createMigrations = null,
         ?StyleInterface $io = null,

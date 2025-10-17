@@ -22,7 +22,7 @@ use Talleu\TriggerMapping\Storage\StorageResolverInterface;
  * A class to create triggers templates (sql or php),
  * (Also create some migrations if needed, I should have separated these responsibilities, mais la flemme)
  */
-final class TriggerCreator implements TriggerCreatorInterface
+final readonly class TriggerCreator implements TriggerCreatorInterface
 {
     public function __construct(
         private Generator                         $generator,
@@ -36,34 +36,35 @@ final class TriggerCreator implements TriggerCreatorInterface
     /**
      * @inheritdoc
      */
-    public function create(string $namespace, array $resolvedTriggers, ?bool $createMigrations = null, ?StyleInterface $io = null, ?string $migrationsNamespace = null): array
+    public function create(string $storage, array $resolvedTriggers, ?bool $createMigrations = null, ?StyleInterface $io = null, ?string $migrationsNamespace = null): array
     {
         $triggersForMigrationsPHP = [];
         $triggersForMigrationsSQL = [];
 
         foreach ($resolvedTriggers as $resolvedTrigger) {
-            if ($resolvedTrigger->storage === Storage::PHP_CLASSES->value) {
-                $triggerClassDetails = $this->createTriggerClass($namespace, $resolvedTrigger);
+            if ($this->getResolvedTriggerStorage($storage, $resolvedTrigger) === Storage::PHP_CLASSES->value) {
+                $triggerClassDetails = $this->createTriggerClass($storage, $resolvedTrigger);
                 $triggersForMigrationsPHP[] = [
                     'classDetails' => $triggerClassDetails,
                     'resolvedTrigger' => $resolvedTrigger,
                 ];
                 $triggersClassesDetails[] = $triggerClassDetails;
             } else {
-                $this->createTriggerSqlFiles($namespace, $resolvedTrigger);
+                $this->createTriggerSqlFiles($storage, $resolvedTrigger);
                 $triggersForMigrationsSQL[] = $resolvedTrigger;
             }
         }
 
         if (true === $createMigrations || (null === $createMigrations && true === $this->migrations)) {
-            $this->createMigration($namespace, $triggersForMigrationsPHP, $triggersForMigrationsSQL, $io, $migrationsNamespace);
+            $this->createMigration($storage, $triggersForMigrationsPHP, $triggersForMigrationsSQL, $io, $migrationsNamespace);
         }
 
         return $triggersClassesDetails ?? [];
     }
 
-    private function createTriggerClass(string $namespace, ResolvedTrigger $resolvedTrigger): ClassNameDetails
+    private function createTriggerClass(string $storage, ResolvedTrigger $resolvedTrigger): ClassNameDetails
     {
+        $namespace = $this->storageResolver->getNamespace($storage);
         $className = Str::asClassName($resolvedTrigger->name);
         $triggerClassNameDetails = $this->generator->createClassNameDetails(
             '\\' . $namespace . '\\' . $className,
@@ -124,7 +125,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         return $triggerClassNameDetails;
     }
 
-    private function createTriggerSqlFiles(string $namespace, ResolvedTrigger $resolvedTrigger): void
+    private function createTriggerSqlFiles(string $storage, ResolvedTrigger $resolvedTrigger): void
     {
         switch (true) {
             case $this->databasePlatformResolver->isPostgreSQL():
@@ -140,10 +141,7 @@ final class TriggerCreator implements TriggerCreatorInterface
                     'definition' => $resolvedTrigger->definition,
                 ];
 
-                $functionFilePath = $this->storageResolver->getFunctionSqlFilePathForNamespace(
-                    $namespace,
-                    $resolvedTrigger
-                );
+                $functionFilePath = $this->storageResolver->getFunctionSqlFilePath($storage, $resolvedTrigger);
                 if (!file_exists($functionFilePath)) {
                     $this->generator->generateFile(
                         $functionFilePath,
@@ -190,7 +188,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         }
 
         $this->generateFile(
-            $this->storageResolver->getTriggerSqlFilePathForNamespace($namespace, $resolvedTrigger),
+            $this->storageResolver->getTriggerSqlFilePath($storage, $resolvedTrigger),
             $triggerTemplate,
             $params
         );
@@ -223,7 +221,7 @@ final class TriggerCreator implements TriggerCreatorInterface
      *       }> $triggersForMigrationsPHP
      * @param array<int, ResolvedTrigger> $triggersForMigrationsSQL
      */
-    private function createMigration(string $namespace, array $triggersForMigrationsPHP, array $triggersForMigrationsSQL, ?StyleInterface $io = null, ?string $migrationsNamespace = null): void
+    private function createMigration(string $storage, array $triggersForMigrationsPHP, array $triggersForMigrationsSQL, ?StyleInterface $io = null, ?string $migrationsNamespace = null): void
     {
         if (!class_exists('Doctrine\Migrations\DependencyFactory')) {
             if ($io) {
@@ -253,7 +251,7 @@ final class TriggerCreator implements TriggerCreatorInterface
 
         foreach ($triggersForMigrationsSQL as $resolvedTrigger) {
             $this->createMigrationFromSqlFiles(
-                $namespace,
+                $storage,
                 $resolvedTrigger,
                 $upPhpCode,
                 $downPhpCode,
@@ -289,12 +287,12 @@ final class TriggerCreator implements TriggerCreatorInterface
      * @param string[] $downPhpCode
      * @param string[] $upPhpCode
      */
-    private function createMigrationFromSqlFiles(string $namespace, ResolvedTrigger $resolvedTrigger, array &$upPhpCode, array &$downPhpCode, ?string $migrationsNamespace = null): void
+    private function createMigrationFromSqlFiles(string $storage, ResolvedTrigger $resolvedTrigger, array &$upPhpCode, array &$downPhpCode, ?string $migrationsNamespace = null): void
     {
         $migrationPath = $this->getMigrationPath($migrationsNamespace);
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
-            $functionPath = $this->storageResolver->getFunctionSqlFilePathForNamespace($namespace, $resolvedTrigger);
+            $functionPath = $this->storageResolver->getFunctionSqlFilePath($storage, $resolvedTrigger);
             $functionRelativePath = Path::makeRelative($functionPath, $migrationPath);
             $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'/' . $functionRelativePath . '\'));';
         } else {
@@ -302,7 +300,7 @@ final class TriggerCreator implements TriggerCreatorInterface
             $upPhpCode[] = '$this->addSql("DROP TRIGGER IF EXISTS ' . $resolvedTrigger->name . ';");';
         }
 
-        $triggerPath = $this->storageResolver->getTriggerSqlFilePathForNamespace($namespace, $resolvedTrigger);
+        $triggerPath = $this->storageResolver->getTriggerSqlFilePath($storage, $resolvedTrigger);
         $triggerRelativePath = Path::makeRelative($triggerPath, $migrationPath);
         $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'/' . $triggerRelativePath . '\'));';
 
@@ -354,5 +352,20 @@ final class TriggerCreator implements TriggerCreatorInterface
         }
 
         return 'DoctrineMigrations';
+    }
+
+    private function getResolvedTriggerStorage(string $storage, ResolvedTrigger $resolvedTrigger): string
+    {
+        if (null !== $resolvedTrigger->storage) {
+            $storageEnum = Storage::tryFrom($resolvedTrigger->storage);
+
+            if ($storageEnum === null) {
+                throw new \InvalidArgumentException("$resolvedTrigger->storage is not a valid storage, should be php or sql");
+            }
+
+            return $resolvedTrigger->storage;
+        }
+
+        return $this->storageResolver->getType($storage);
     }
 }
