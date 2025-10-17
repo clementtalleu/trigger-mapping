@@ -25,7 +25,7 @@ final class MakeTriggerTest extends AbstractMakeTriggerTestCase
             'trigger-name' => $triggerName,
             'on' => 'INSERT,UPDATE',
             'when' => 'AFTER',
-            '--namespace' => 'ApplicationSQL',
+            '--storage' => 'sql_storage',
             'scope' => 'ROW',
             'function-name' => $functionName,
         ]);
