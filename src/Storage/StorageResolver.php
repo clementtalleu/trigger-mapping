@@ -52,7 +52,7 @@ final readonly class StorageResolver implements StorageResolverInterface
             return $directory . '/triggers/' . $trigger->name . '.sql';
         }
 
-        return $directory . '/' . $trigger->function . '.sql';
+        return $directory . '/' . $trigger->name . '.sql';
     }
 
     public function guessFunctionSqlFilePath(ResolvedTrigger $trigger): string
