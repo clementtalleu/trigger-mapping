@@ -72,9 +72,7 @@ final readonly class StorageResolver implements StorageResolverInterface
         }
 
         foreach ($this->storages as $storage) {
-            $filePath = $this->getResolvedDirectory(
-                    $storage['directory']
-                ) . '/functions/' . $trigger->function . '.sql';
+            $filePath = $this->getResolvedDirectory($storage['directory']) . '/functions/' . $trigger->function . '.sql';
             if (file_exists($filePath)) {
                 return $filePath;
             }
