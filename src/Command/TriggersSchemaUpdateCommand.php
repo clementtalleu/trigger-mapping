@@ -84,15 +84,8 @@ final class TriggersSchemaUpdateCommand extends Command
             $io->writeln(sprintf(' > Processing trigger <info>%s</info>', $trigger->name));
 
             $queries = [];
-            if ($trigger->storage === Storage::PHP_CLASSES->value) {
-                $fqcn = $trigger->className;
-
-                if (!$fqcn) {
-                    // No class related in trigger attribute, could not find sql logic : do nothing
-                    $io->warning("The trigger {$trigger->name} className property is empty, could not retrieve your trigger sql logiq");
-                    continue;
-                }
-
+            $fqcn = $trigger->className;
+            if ($fqcn) {
                 if (!is_a($fqcn, MySQLTriggerInterface::class, true) && !is_a($fqcn, PostgreSQLTriggerInterface::class, true)) {
                     throw new NotAnValidTriggerClassException($fqcn);
                 }

@@ -96,7 +96,7 @@ final class TriggersSchemaDiffCommand extends Command
 
         $listItems = [];
         foreach ($triggersToCreate as $trigger) {
-            $storageType = $trigger->storage === Storage::PHP_CLASSES->value ? 'PHP Class' : 'SQL File(s)';
+            $storageType = $this->storageResolver->getResolvedTriggerStorageType($storage, $trigger) === Storage::PHP_CLASSES->value ? 'PHP Class' : 'SQL File(s)';
             $listItems[] = sprintf(
                 'Trigger "<info>%s</info>" will be created (Storage: <comment>%s</comment>)',
                 $trigger->name,

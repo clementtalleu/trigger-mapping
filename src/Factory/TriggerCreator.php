@@ -42,7 +42,7 @@ final readonly class TriggerCreator implements TriggerCreatorInterface
         $triggersForMigrationsSQL = [];
 
         foreach ($resolvedTriggers as $resolvedTrigger) {
-            if ($this->getResolvedTriggerStorage($storage, $resolvedTrigger) === Storage::PHP_CLASSES->value) {
+            if ($this->storageResolver->getResolvedTriggerStorageType($storage, $resolvedTrigger) === Storage::PHP_CLASSES->value) {
                 $triggerClassDetails = $this->createTriggerClass($storage, $resolvedTrigger);
                 $triggersForMigrationsPHP[] = [
                     'classDetails' => $triggerClassDetails,
@@ -352,20 +352,5 @@ final readonly class TriggerCreator implements TriggerCreatorInterface
         }
 
         return 'DoctrineMigrations';
-    }
-
-    private function getResolvedTriggerStorage(string $storage, ResolvedTrigger $resolvedTrigger): string
-    {
-        if (null !== $resolvedTrigger->storage) {
-            $storageEnum = Storage::tryFrom($resolvedTrigger->storage);
-
-            if ($storageEnum === null) {
-                throw new \InvalidArgumentException("$resolvedTrigger->storage is not a valid storage, should be php or sql");
-            }
-
-            return $resolvedTrigger->storage;
-        }
-
-        return $this->storageResolver->getType($storage);
     }
 }

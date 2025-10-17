@@ -123,6 +123,11 @@ final readonly class StorageResolver implements StorageResolverInterface
         return array_keys($this->storages);
     }
 
+    public function getResolvedTriggerStorageType(string $storage, ResolvedTrigger $resolvedTrigger): string
+    {
+        return $resolvedTrigger->storage ?? $this->getType($storage);
+    }
+
     /**
      * @phpstan-return StorageConfiguration
      */

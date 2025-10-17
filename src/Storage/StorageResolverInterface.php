@@ -22,6 +22,11 @@ interface StorageResolverInterface
      */
     public function getAvailableStorages(): array;
 
+    /**
+     * @return value-of<Storage>
+     */
+    public function getResolvedTriggerStorageType(string $storage, ResolvedTrigger $resolvedTrigger): string;
+
     public function getFunctionSqlFilePath(string $name, ResolvedTrigger $trigger): string;
 
     public function getTriggerSqlFilePath(string $name, ResolvedTrigger $trigger): string;
