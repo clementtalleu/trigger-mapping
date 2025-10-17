@@ -23,7 +23,7 @@ class Configuration implements ConfigurationInterface
                         ->always(static function ($v) {
                             foreach ($v as $key => $value) {
                                 if (!isset($value['name'])) {
-                                    $v[$key]['name'] = 'default';
+                                    $v[$key]['name'] = \is_int($key) ? 'default' : $key;
                                 }
                             }
 
