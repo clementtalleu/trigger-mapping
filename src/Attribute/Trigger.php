@@ -24,11 +24,13 @@ class Trigger
         public ?string $className = null,
         public ?string $onTable = null,
     ) {
-        $validStorages = array_column(Storage::cases(), 'value');
-        if (!\in_array($this->storage, $validStorages, true)) {
-            throw new \InvalidArgumentException(
-                'Invalid storage "' . $this->storage . '", should be one of: "' . implode(', ', $validStorages)
-            );
+        if ($this->storage !== null) {
+            $validStorages = array_column(Storage::cases(), 'value');
+            if (!\in_array($this->storage, $validStorages, true)) {
+                throw new \InvalidArgumentException(
+                    'Invalid storage "' . $this->storage . '", should be one of: "' . implode(', ', $validStorages)
+                );
+            }
         }
     }
 }
