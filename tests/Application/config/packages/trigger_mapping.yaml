@@ -1,5 +1,9 @@
 trigger_mapping:
-  storage:
-    type: php
-    namespace: Application
+  storages:
+    -
+      type: php
+      namespace: Application
+    -
+      type: sql
+      namespace: ApplicationSQL
   migrations: false
