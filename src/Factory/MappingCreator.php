@@ -46,10 +46,14 @@ final readonly class MappingCreator implements MappingCreatorInterface
         }
 
         if ($triggerClassFqcn !== null) {
-            $reflection = new \ReflectionClass($triggerClassFqcn);
-            $classShortName = $reflection->getShortName();
-            $manipulator->addUseStatementIfNecessary($triggerClassFqcn);
-            $attributeArguments['className'] = new ClassNameValue($classShortName, $triggerClassFqcn);
+            if (class_exists($triggerClassFqcn)) {
+                $reflection = new \ReflectionClass($triggerClassFqcn);
+                $classShortName = $reflection->getShortName();
+                $manipulator->addUseStatementIfNecessary($triggerClassFqcn);
+                $attributeArguments['className'] = new ClassNameValue($classShortName, $triggerClassFqcn);
+            } else {
+                $attributeArguments['className'] = $triggerClassFqcn;
+            }
         }
 
         $manipulator->addAttributeToClass(Trigger::class, $attributeArguments);
