@@ -8,15 +8,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Model\ResolvedTrigger;
 use Talleu\TriggerMapping\Storage\Storage;
-use Talleu\TriggerMapping\Storage\StorageResolverInterface;
 
 final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactoryInterface
 {
-    public function __construct(
-        private StorageResolverInterface $storageResolver,
-    ) {
-    }
-
     /**
      * @inheritdoc
      */
@@ -24,10 +18,8 @@ final readonly class TriggerDefinitionFactory implements TriggerDefinitionFactor
     {
         if (null !== $attribute->storage && null !== Storage::tryFrom($attribute->storage)) {
             $storage = $attribute->storage;
-        } elseif (null !== $attribute->storage && null == Storage::tryFrom($attribute->storage)) {
-            throw new \InvalidArgumentException("{$attribute->storage} is not a valid storage, should be php or sql");
         } else {
-            $storage = $this->storageResolver->getType();
+            $storage = null;
         }
 
         return ResolvedTrigger::create(

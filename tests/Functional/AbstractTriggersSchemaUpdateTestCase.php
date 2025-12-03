@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Talleu\TriggerMapping\Tests\Functional;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SQLServerPlatform;
 use Doctrine\ORM\EntityManagerInterface;
@@ -77,25 +78,13 @@ abstract class AbstractTriggersSchemaUpdateTestCase extends KernelTestCase
 
     protected function triggerExists(string $triggerName): bool
     {
-        switch ($this->connection->getDatabasePlatform()::class) {
-            case PostgreSQLPlatform::class:
-                $platform = 'postgresql';
-                break;
-            case SQLServerPlatform::class:
-                $platform = 'sqlsrv';
-                break;
-            default:
-                $platform = 'mysql';
-                break;
-        }
-
-        if ($platform === 'mysql') {
-            $sql = "SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_NAME = ?";
-        } elseif ($platform === 'sqlsrv') { 
-            $sql = "SELECT COUNT(*) FROM sys.triggers AS T WHERE T.name = ?";
-        } else {
-            $sql = "SELECT COUNT(*) FROM pg_trigger WHERE tgname = ?";
-        }
+        $dbPlatform = $this->connection->getDatabasePlatform();
+        $sql = match (true) {
+            $dbPlatform instanceof PostgreSQLPlatform => "SELECT COUNT(*) FROM pg_trigger WHERE tgname = ?",
+            $dbPlatform instanceof SQLServerPlatform => "SELECT COUNT(*) FROM sys.triggers AS T WHERE T.name = ?",
+            $dbPlatform instanceof MySQLPlatform => "SELECT COUNT(*) FROM information_schema.TRIGGERS WHERE TRIGGER_NAME = ?",
+            default => throw new \RuntimeException('Unsupported platform ' . $dbPlatform::class),
+        };
 
         $result = $this->connection->fetchOne($sql, [$triggerName]);
 

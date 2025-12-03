@@ -24,7 +24,7 @@ final class MakeTriggerTest extends AbstractMakeTriggerTestCase
             'trigger-name' => $triggerName,
             'on' => 'UPDATE',
             'when' => 'AFTER',
-            'storage' => 'sql',
+            '--storage' => 'sql_storage',
         ]);
 
         $commandTester->assertCommandIsSuccessful();
