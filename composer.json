@@ -19,7 +19,7 @@
     "symfony/config": "^6.0 || ^7.0 || ^8.0",
     "symfony/http-kernel": "^6.0 || ^7.0 || ^8.0",
     "doctrine/dbal": "^3.0 || ^4.0",
-    "doctrine/doctrine-bundle": "^2.7",
+    "doctrine/doctrine-bundle": "^2.7 || ^3.0",
     "doctrine/orm": "^2.16 || ^3.0"
   },
   "suggest": {
@@ -32,7 +32,7 @@
     "symfony/var-dumper": "^7.0 || ^8.0",
     "symfony/framework-bundle": "^7.2 || ^8.0",
     "symfony/test-pack": "^1.2",
-    "doctrine/doctrine-migrations-bundle": "^3.2",
+    "doctrine/doctrine-migrations-bundle": "^3.2 || ^4.0",
     "symfony/maker-bundle": "^1.50",
     "symfony/yaml": "^7.3 || ^8.0"
   },

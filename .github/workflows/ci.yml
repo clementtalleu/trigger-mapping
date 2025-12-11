@@ -5,21 +5,45 @@ on: [push, pull_request]
 jobs:
   unit_tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.2', '8.3', '8.4']
+        symfony-version: ['6.4.*', '7.4.*']
+        exclude:
+          # Symfony 6.4 doesn't officially support PHP 8.4
+          - php-version: '8.4'
+            symfony-version: '6.4.*'
+        include:
+          # Symfony 8 requires PHP 8.4+
+          - php-version: '8.4'
+            symfony-version: '8.0.*'
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: Setup PHP ${{ matrix.php-version }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php-version }}
           coverage: xdebug
 
-      - name: Install Dependencies
-        run: composer install --prefer-dist --no-progress
+      - name: Validate composer.json
+        run: composer validate --strict
 
-  #      - name: Run Unit Tests
-  #        run: vendor/bin/phpunit --testsuite=unit
+      - name: Install Symfony ${{ matrix.symfony-version }}
+        run: |
+          composer require --no-update symfony/framework-bundle:${{ matrix.symfony-version }}
+          composer require --no-update symfony/http-kernel:${{ matrix.symfony-version }}
+          composer require --no-update symfony/config:${{ matrix.symfony-version }}
+          composer require --no-update symfony/dependency-injection:${{ matrix.symfony-version }}
+
+      - name: Install Dependencies
+        run: composer update --prefer-dist --no-progress
+
+      - name: Run phpstan
+        run: vendor/bin/phpstan analyse src
 
   functional_tests:
     runs-on: ubuntu-latest
@@ -27,13 +51,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        php-version: ['8.2', '8.3', '8.4']
+        symfony-version: ['6.4.*', '7.4.*']
+        platform: [mysql, postgresql]
+        exclude:
+          # Symfony 6.4 doesn't officially support PHP 8.4
+          - php-version: '8.4'
+            symfony-version: '6.4.*'
         include:
-          - platform: mysql
-            database_url: 'mysql://root:root_password@127.0.0.1:3306/test_db?serverVersion=8.0'
-            testsuite: 'mysql'
-          - platform: postgresql
-            database_url: 'postgresql://test_user:test_password@127.0.0.1:5432/test_db?serverVersion=15'
-            testsuite: 'postgresql'
+          # Symfony 8 with MySQL
+          - php-version: '8.4'
+            symfony-version: '8.0.*'
+            platform: mysql
+          # Symfony 8 with PostgreSQL
+          - php-version: '8.4'
+            symfony-version: '8.0.*'
+            platform: postgresql
 
     services:
       mysql:
@@ -41,12 +74,15 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: 'root_password'
           MYSQL_DATABASE: 'test_db'
+          MYSQL_USER: 'test_user'
+          MYSQL_PASSWORD: 'test_password'
         ports: ['3306:3306']
         options: >-
           --health-cmd="mysqladmin ping -h localhost -u root -proot_password"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
+
       postgres:
         image: postgres:15-alpine
         env:
@@ -59,26 +95,38 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup PHP
+      - name: Setup PHP ${{ matrix.php-version }}
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: ${{ matrix.php-version }}
           coverage: xdebug
 
+      - name: Install Symfony ${{ matrix.symfony-version }}
+        run: |
+          composer require --no-update symfony/framework-bundle:${{ matrix.symfony-version }}
+          composer require --no-update symfony/http-kernel:${{ matrix.symfony-version }}
+          composer require --no-update symfony/config:${{ matrix.symfony-version }}
+          composer require --no-update symfony/dependency-injection:${{ matrix.symfony-version }}
+
       - name: Install Dependencies
-        run: composer install --prefer-dist --no-progress
+        run: composer update --prefer-dist --no-progress
 
       - name: Test cs-fixer
         run: PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix src --dry-run --diff --no-ansi
 
-      - name: Run phpstan
-        run: vendor/bin/phpstan analyse src
-
-      - name: Run Functional Tests for ${{ matrix.platform }}
+      - name: Run Functional Tests (MySQL)
+        if: matrix.platform == 'mysql'
         env:
-          DATABASE_URL: ${{ matrix.database_url }}
-        run: vendor/bin/phpunit --testsuite=${{ matrix.testsuite }}
+          DATABASE_URL: 'mysql://root:root_password@127.0.0.1:3306/test_db?serverVersion=8.0'
+        run: vendor/bin/phpunit --testsuite=mysql
+
+      - name: Run Functional Tests (PostgreSQL)
+        if: matrix.platform == 'postgresql'
+        env:
+          DATABASE_URL: 'postgresql://test_user:test_password@127.0.0.1:5432/test_db?serverVersion=15'
+        run: vendor/bin/phpunit --testsuite=postgresql
