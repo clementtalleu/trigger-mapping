@@ -69,7 +69,7 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set('trigger_mapping.utils.entity_finder', EntityFinder::class)
         ->args([
-            service('maker.doctrine_helper'),
+            service('doctrine.orm.entity_manager'),
         ]);
 };
 
