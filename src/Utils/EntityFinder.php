@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Talleu\TriggerMapping\Utils;
 
 use Doctrine\ORM\Mapping\ClassMetadata;
-use Symfony\Bundle\MakerBundle\Doctrine\DoctrineHelper;
+use Doctrine\ORM\EntityManagerInterface;
 
 final class EntityFinder
 {
     public function __construct(
-        private readonly DoctrineHelper $doctrineHelper,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
     public function findEntityFqcnForTable(string $tableName): ?string
     {
-        $allMetadata = $this->doctrineHelper->getRegistry()->getManager()->getMetadataFactory()->getAllMetadata();
+        $allMetadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
 
         /** @var ClassMetadata<object> $metadata */
         foreach ($allMetadata as $metadata) {
@@ -30,7 +30,7 @@ final class EntityFinder
 
     public function findEntityFqcnForJoinTable(string $tableName): ?string
     {
-        $allMetadata = $this->doctrineHelper->getRegistry()->getManager()->getMetadataFactory()->getAllMetadata();
+        $allMetadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
 
         /** @var ClassMetadata<object> $metadata */
         foreach ($allMetadata as $metadata) {
