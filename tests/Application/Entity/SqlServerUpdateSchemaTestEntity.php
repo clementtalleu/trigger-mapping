@@ -13,7 +13,7 @@ use Talleu\TriggerMapping\Tests\Application\Triggers\SqlServerTriggerClass;
     name: "trg_update_schema_test",
     on: ["UPDATE"],
     when: "AFTER",
-    scope: "ROW",
+    scope: 'STATEMENT',
     className: SqlServerTriggerClass::class
 )]
 class SqlServerUpdateSchemaTestEntity

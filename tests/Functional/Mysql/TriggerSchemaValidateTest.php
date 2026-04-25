@@ -25,6 +25,14 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
         SQL;
     }
 
+    protected function createExcludedTrigger(string $triggerName): void
+    {
+        $this->executeSql(
+            "CREATE TRIGGER {$triggerName} AFTER INSERT ON mysql_correctly_mapped_entity ".
+            'FOR EACH ROW BEGIN SET @noop = 1; END'
+        );
+    }
+
     public function testCorrectlyMappedEntity(): void
     {
         $sql = $this->getCreateTriggerSql(
@@ -91,6 +99,27 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'not sync with the current mapping'));
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'not mapped'));
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'correctly_mapped_trigger'));
+    }
+
+    public function testWhenMismatchIsReportedSpecifically(): void
+    {
+        $sql = $this->getCreateTriggerSql(
+            'correctly_mapped_trigger',
+            'mysql_correctly_mapped_entity',
+            'AFTER',
+            'UPDATE',
+        );
+        $this->executeSql($sql);
+
+        $command = $this->application->find('triggers:schema:validate');
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(['--entity' => MysqlCorrectlyMappedEntity::class]);
+        $this->assertEquals($commandTester->getStatusCode(), Command::FAILURE);
+
+        $output = $commandTester->getDisplay();
+        $this->assertTrue(str_contains($output, 'when'));
+        $this->assertTrue(str_contains($output, 'BEFORE'));
+        $this->assertTrue(str_contains($output, 'AFTER'));
     }
 
     public function testTableWithoutEntity(): void

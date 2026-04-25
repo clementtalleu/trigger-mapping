@@ -1,4 +1,4 @@
-## ✍️ Create Trigger Files from Mapping 
+## ✍️ Create Trigger Files from Mapping
 
 ```
 bin/console triggers:schema:diff --apply
@@ -8,13 +8,19 @@ This command follows a "code-first" approach. It's the primary tool for when you
 
 The command works by performing a "diff": it reads all your existing mappings and compares them against the database schema. For every trigger that is mapped in your code but is missing from the database, it will generate the necessary boilerplate files. This includes creating the trigger file itself, and for PostgreSQL, the associated function file.
 
+### Options
 
-#### File and Migration Generation
+| Option        | Description                                                                                                |
+|---------------|------------------------------------------------------------------------------------------------------------|
+| `--apply`     | Actually generate the files (otherwise the command is dry-run and only lists what would be created).        |
+| `--entity`    | Limit the diff to the given entity FQCN (e.g. `--entity "App\Entity\User"`). Useful for incremental work.  |
+
+### File and Migration Generation
 
 Based on your bundle's configuration, this command will:
 * Create the trigger logic files (either as `.sql` files or PHP classes).
 * If `migrations` is set to `true` in your configuration, it will also automatically generate a new Doctrine migration file to apply these new triggers to your database.
 
 > **Important Note:** This command only creates the *scaffolding* for your triggers. It generates the files with a `TODO` placeholder inside. You are still responsible for the most important part: writing the actual SQL logic within the generated files to meet your application's needs. The command does not apply the triggers directly to the database; you must run the generated migration for that or triggers:schema:update then.
-> 
+>
 > Furthermore, if you store your SQL logic in a PHP class, you will need to update your attribute with the correct path to your file in the className property #[Trigger(className:< your FQCN >)].

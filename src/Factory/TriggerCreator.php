@@ -88,8 +88,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         if ($this->databasePlatformResolver->isPostgreSQL()) {
             $template = 'PostgresqlTrigger.tpl.php';
             $params['events'] = strtoupper(implode(' OR ', $resolvedTrigger->events));
-            $params['return_value'] = ($resolvedTrigger->when === 'AFTER') ? 'NULL' : 'NEW';
-
+            $params['return_value'] = $this->resolvePostgresReturnValue($resolvedTrigger);
         } elseif ($this->databasePlatformResolver->isMySQL()) {
             if (count($resolvedTrigger->events) > 1) {
                 throw new \InvalidArgumentException(
@@ -139,7 +138,7 @@ final class TriggerCreator implements TriggerCreatorInterface
                 'when' => $resolvedTrigger->when,
                 'scope' => $resolvedTrigger->scope,
                 'events' => strtoupper(implode(' OR ', $resolvedTrigger->events)),
-                'return_value' => ($resolvedTrigger->when === 'AFTER') ? 'NULL' : 'NEW',
+                'return_value' => $this->resolvePostgresReturnValue($resolvedTrigger),
                 'content' => $resolvedTrigger->content,
                 'definition' => $resolvedTrigger->definition,
             ];
@@ -276,10 +275,12 @@ final class TriggerCreator implements TriggerCreatorInterface
         $upPhpCode[] = '$this->addSql(\\' . $fqcn . '::getTrigger());';
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
-            $downPhpCode[] = '$this->addSql("DROP TRIGGER IF EXISTS ' . $resolvedTrigger->name . ' ON ' . $resolvedTrigger->table . ';");';
-            $downPhpCode[] = '$this->addSql("DROP FUNCTION IF EXISTS ' . $resolvedTrigger->function . '();");';
+            $downPhpCode[] = $this->addSqlPhpStatement(sprintf('DROP TRIGGER IF EXISTS %s ON %s;', $resolvedTrigger->name, $resolvedTrigger->table));
+            if (null !== $resolvedTrigger->function) {
+                $downPhpCode[] = $this->addSqlPhpStatement(sprintf('DROP FUNCTION IF EXISTS %s();', $resolvedTrigger->function));
+            }
         } else {
-            $downPhpCode[] = '$this->addSql("DROP TRIGGER IF EXISTS ' . $resolvedTrigger->name . ';");';
+            $downPhpCode[] = $this->addSqlPhpStatement(sprintf('DROP TRIGGER IF EXISTS %s;', $resolvedTrigger->name));
         }
     }
 
@@ -294,26 +295,40 @@ final class TriggerCreator implements TriggerCreatorInterface
 
         if ($this->databasePlatformResolver->isPostgreSQL()) {
             $functionRelativePath = sprintf('/../%s/functions/%s.sql', $storageDirName, $resolvedTrigger->function);
-            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'' . $functionRelativePath . '\'));';
+            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . '.var_export($functionRelativePath, true).'));';
             $triggerRelativePath = sprintf('/../%s/triggers/%s.sql', $storageDirName, $resolvedTrigger->name);
-            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'' . $triggerRelativePath . '\'));';
+            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . '.var_export($triggerRelativePath, true).'));';
         } else {
             // First we have to drop the trigger if exists (only in MySQL mode, in postgre we "create or replace")
-            $upPhpCode[] = '$this->addSql("DROP TRIGGER IF EXISTS ' . $resolvedTrigger->name . ';");';
+            $upPhpCode[] = $this->addSqlPhpStatement(sprintf('DROP TRIGGER IF EXISTS %s;', $resolvedTrigger->name));
             $triggerRelativePath = sprintf('/../%s/%s.sql', $storageDirName, $resolvedTrigger->name);
-            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . \'' . $triggerRelativePath . '\'));';
+            $upPhpCode[] = '$this->addSql(file_get_contents(__DIR__ . '.var_export($triggerRelativePath, true).'));';
         }
 
-        $downPhpCode = [];
-        $downPhpCode[] = '// Reverting this migration will drop the trigger and function.';
+        // NOTE: do NOT reset $downPhpCode here — it is passed by reference and
+        // shared across iterations (and with createMigrationFromPhpClass).
+        // Resetting it would lose the down statements of previously processed
+        // triggers and only keep the drop of the LAST one. See audit finding F-16.
         if ($this->databasePlatformResolver->isPostgreSQL()) {
-            $downPhpCode[] = '$this->addSql("DROP TRIGGER IF EXISTS ' . $resolvedTrigger->name . ' ON ' . $resolvedTrigger->table . ';");';
+            $downPhpCode[] = $this->addSqlPhpStatement(sprintf('DROP TRIGGER IF EXISTS %s ON %s;', $resolvedTrigger->name, $resolvedTrigger->table));
             if ($resolvedTrigger->function) {
-                $downPhpCode[] = '$this->addSql("DROP FUNCTION IF EXISTS ' . $resolvedTrigger->function . '();");';
+                $downPhpCode[] = $this->addSqlPhpStatement(sprintf('DROP FUNCTION IF EXISTS %s();', $resolvedTrigger->function));
             }
         } else {
-            $downPhpCode[] = '$this->addSql("DROP TRIGGER IF EXISTS ' . $resolvedTrigger->name . ';");';
+            $downPhpCode[] = $this->addSqlPhpStatement(sprintf('DROP TRIGGER IF EXISTS %s;', $resolvedTrigger->name));
         }
+    }
+
+    /**
+     * Build a `$this->addSql(...)` PHP statement from an arbitrary SQL string,
+     * using `var_export()` so any character (quotes, backslashes, NUL, …) is
+     * properly escaped in the generated migration source code. Combined with
+     * the strict identifier validation on the Trigger attribute this closes
+     * any code-injection vector at the migration generation step.
+     */
+    private function addSqlPhpStatement(string $sql): string
+    {
+        return sprintf('$this->addSql(%s);', var_export($sql, true));
     }
 
     /**
@@ -342,5 +357,32 @@ final class TriggerCreator implements TriggerCreatorInterface
         if ($io) {
             $io->text('</>Generated new migration class to <info>' . basename($path) . '</>');
         }
+    }
+
+    /**
+     * Resolve the value a PostgreSQL trigger function should `RETURN`.
+     *
+     * The matrix is:
+     *  - AFTER triggers          -> NULL (return value is ignored anyway)
+     *  - STATEMENT-level         -> NULL
+     *  - BEFORE/INSTEAD OF DELETE -> OLD (returning NEW=NULL would silently CANCEL the row)
+     *  - BEFORE/INSTEAD OF other -> NEW
+     */
+    private function resolvePostgresReturnValue(ResolvedTrigger $resolvedTrigger): string
+    {
+        if ('AFTER' === strtoupper($resolvedTrigger->when)) {
+            return 'NULL';
+        }
+
+        if ('STATEMENT' === strtoupper($resolvedTrigger->scope)) {
+            return 'NULL';
+        }
+
+        $events = array_map('strtoupper', $resolvedTrigger->events);
+        if (['DELETE'] === $events) {
+            return 'OLD';
+        }
+
+        return 'NEW';
     }
 }

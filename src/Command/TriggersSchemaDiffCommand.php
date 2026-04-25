@@ -40,12 +40,20 @@ final class TriggersSchemaDiffCommand extends Command
             InputOption::VALUE_NONE,
             'Create the SQL/PHP templates from the entity mapping.'
         );
+
+        $this->addOption(
+            'entity',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Limit the diff to the given entity FQCN.'
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = (new SymfonyStyle($input, $output));
         $isApplyMode = $input->getOption('apply');
+        $entityName = $input->getOption('entity');
 
         if ($isApplyMode) {
             $io->note('Running in APPLY mode: Changes will be written to files.');
@@ -53,9 +61,9 @@ final class TriggersSchemaDiffCommand extends Command
             $io->note('Running in DRY-RUN mode. No files will be changed. Use the --apply option to execute changes.');
         }
 
-        $entitiesTriggers = $this->triggersMapping->extractTriggerMapping();
+        $entitiesTriggers = $this->triggersMapping->extractTriggerMapping($entityName);
         $entitiesTriggersNames = array_keys($entitiesTriggers);
-        $dbTriggersNames = array_keys($this->triggersDbExtractor->listTriggers());
+        $dbTriggersNames = array_keys($this->triggersDbExtractor->listTriggers($entityName));
         $missingTriggersKeysNames = array_diff($entitiesTriggersNames, $dbTriggersNames);
 
         if (empty($missingTriggersKeysNames)) {

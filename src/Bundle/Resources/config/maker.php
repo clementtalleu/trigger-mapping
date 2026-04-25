@@ -59,5 +59,3 @@ return static function (ContainerConfigurator $container): void {
         ])
         ->tag('maker.command');
 };
-
-

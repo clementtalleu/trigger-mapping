@@ -10,6 +10,11 @@ use Talleu\TriggerMapping\Tests\Functional\AbstractTriggersSchemaUpdateTestCase;
 
 final class TriggersSchemaUpdateTest extends AbstractTriggersSchemaUpdateTestCase
 {
+    protected function getTriggerEntityClass(): string
+    {
+        return SqlServerUpdateSchemaTestEntity::class;
+    }
+
     public function testExecuteApplyMode(): void
     {
         $this->createSchemaForEntities([SqlServerUpdateSchemaTestEntity::class]);
@@ -28,10 +33,5 @@ final class TriggersSchemaUpdateTest extends AbstractTriggersSchemaUpdateTestCas
         $this->assertStringContainsString("Processing trigger trg_update_schema_test", $output);
         $this->assertStringContainsString('Database schema updated successfully.', $output);
         $this->assertTrue($this->triggerExists('trg_update_schema_test'), "Post-condition failed: Trigger 'trg_update_schema_test' should exist after running the command.");
-    }
-
-    protected function createTriggerFile(string $fileName, string $content): void
-    {
-        // TODO: Implement createTriggerFile() method.
     }
 }

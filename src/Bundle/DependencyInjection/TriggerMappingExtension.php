@@ -44,7 +44,7 @@ final class TriggerMappingExtension extends Extension
         // Exclude triggers from mapping or validation
         $excludes = $config['excludes'];
         if (!is_array($excludes)) {
-            throw new \InvalidArgumentException("Excludes node should be an array");
+            throw new \InvalidArgumentException('Excludes node should be an array');
         }
 
         $container->setParameter('trigger_mapping.exclude', $excludes);

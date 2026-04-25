@@ -2,17 +2,22 @@
 
 namespace Talleu\TriggerMapping\Tests\Functional;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
-use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\Console\Input\StringInput;
+use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Filesystem\Filesystem;
 use Talleu\TriggerMapping\Tests\Application\Entity\NoTriggerEntity;
 
 abstract class AbstractMakeTriggerTestCase extends KernelTestCase
 {
+    use DatabaseCleanupTrait;
+
     protected Application $application;
+    protected Connection $connection;
     protected EntityManagerInterface $entityManager;
     protected ?string $triggersDir = null;
 
@@ -20,10 +25,17 @@ abstract class AbstractMakeTriggerTestCase extends KernelTestCase
     {
         $kernel = self::bootKernel();
         $this->application = new Application($kernel);
+        $this->application->setAutoExit(false);
 
         $container = $kernel->getContainer();
+        $this->connection = $container->get('doctrine.dbal.default_connection');
         $this->entityManager = $container->get('doctrine.orm.entity_manager');
-        $this->triggersDir =  $kernel->getProjectDir().'/triggers';
+        $this->triggersDir = $kernel->getProjectDir().'/triggers';
+
+        // Ensure the test database exists (SQL Server does not auto-create it like MySQL/PostgreSQL),
+        // then reset it to an empty state — this is more reliable than database:drop on SQL Server.
+        $this->runCommand('doctrine:database:create --if-not-exists');
+        $this->cleanupDatabase($this->connection);
 
         $filesystem = new Filesystem();
         if ($filesystem->exists($this->triggersDir)) {
@@ -33,6 +45,12 @@ abstract class AbstractMakeTriggerTestCase extends KernelTestCase
         $this->createDirs();
 
         $this->createSchemaForEntities([NoTriggerEntity::class]);
+    }
+
+    protected function runCommand(string $command): void
+    {
+        $input = new StringInput($command);
+        $this->application->run($input, new NullOutput());
     }
 
     abstract public function createDirs();
