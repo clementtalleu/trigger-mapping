@@ -6,7 +6,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Talleu\TriggerMapping\Attribute\Trigger;
 
 #[ORM\Entity]
-#[Trigger(name: "correctly_mapped_trigger", on: ["UPDATE"], when: "AFTER", scope: "ROW")]
+#[Trigger(name: 'correctly_mapped_trigger', on: ['UPDATE'], when: 'AFTER', scope: 'STATEMENT')]
 class SqlServerCorrectlyMappedEntity
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]

@@ -7,16 +7,13 @@
          displayDetailsOnTestsThatTriggerWarnings="true"
 >
     <php>
-        <env name="XDEBUG_MODE" value="coverage"/>
         <env name="APP_ENV" value="test"/>
         <env name="APP_DEBUG" value="1"/>
         <env name="APP_SECRET" value="test_secret"/>
 
         <env name="KERNEL_CLASS" value="Talleu\TriggerMapping\Tests\Application\Kernel"/>
-        <!--  To switch plateform   from mysql to postgre     -->
+        <!-- Default: MySQL. For PostgreSQL use `phpunit -c phpunit-postgresql.xml.dist`, for SQL Server `phpunit -c phpunit-sqlserver.xml.dist`. -->
         <env name="DATABASE_URL" value="mysql://test_user:test_password@127.0.0.1:3308/test_db?serverVersion=8.0"/>
-        <!--<env name="DATABASE_URL" value="postgresql://test_user:test_password@127.0.0.1:5433/test_db?serverVersion=15"/>-->
-        <!--<env name="DATABASE_URL" value="pdo-sqlsrv://sa:StrongPassw0rd@127.0.0.1:1433/test_db?serverVersion=2022&amp;charset=UTF-8"/>-->
     </php>
 
     <testsuites>
@@ -33,12 +30,6 @@
             <directory>tests/Unit</directory>
         </testsuite>
     </testsuites>
-
-    <coverage>
-        <report>
-            <clover outputFile="coverage/clover.xml"/>
-        </report>
-    </coverage>
 
     <source ignoreIndirectDeprecations="true" restrictNotices="true" restrictWarnings="true">
         <include>

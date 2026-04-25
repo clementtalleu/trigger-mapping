@@ -115,10 +115,10 @@ final class TriggersSchemaUpdateCommand extends Command
 
                     $queryTrigger = $fqcn::getTrigger();
                     if ($this->databasePlatformResolver->isPostgreSQL()) {
-                        $queryTrigger = str_replace('CREATE TRIGGER', 'CREATE OR REPLACE TRIGGER', $queryTrigger);
+                        $queries = array_merge($queries, $this->postgresCreateOrReplaceQueries($queryTrigger, $trigger));
+                    } else {
+                        $queries[] = $queryTrigger;
                     }
-
-                    $queries[] = $queryTrigger;
                 }
             } else {
                 $dir = $this->storageResolver->getResolvedDirectory();
@@ -144,26 +144,45 @@ final class TriggersSchemaUpdateCommand extends Command
                 /** @var string $query */
                 $query = file_get_contents($triggerFilePath);
                 if ($this->databasePlatformResolver->isPostgreSQL()) {
-                    $query = str_replace('CREATE TRIGGER', 'CREATE OR REPLACE TRIGGER', $query);
+                    $queries = array_merge($queries, $this->postgresCreateOrReplaceQueries($query, $trigger));
+                } else {
+                    $queries[] = $query;
                 }
-
-                $queries[] = $query;
             }
 
             foreach ($queries as $query) {
                 $io->writeln(sprintf('<fg=gray>%s</>', trim($query)));
-                if ($isForceMode) {
-                    try {
-                        $this->connection->executeStatement($query);
-                    } catch (\Exception $e) {
-                        $io->error(sprintf(
-                            'An error occurred while executing the query for trigger "%s": %s',
-                            $trigger->name,
-                            $e->getMessage()
-                        ));
+            }
 
-                        return Command::FAILURE;
+            if ($isForceMode) {
+                try {
+                    // PostgreSQL and SQL Server support transactional DDL — wrap each trigger's
+                    // queries (function + trigger) so the database is never left in a partially
+                    // applied state for one trigger.
+                    //
+                    // MySQL/MariaDB implicitly commit each DDL statement, so wrapping in a
+                    // transaction is impossible (and would crash with "no active transaction"
+                    // when we attempt to commit). On those platforms we simply execute
+                    // sequentially — atomicity is not available at the engine level.
+                    if ($this->databasePlatformResolver->isMySQL()) {
+                        foreach ($queries as $query) {
+                            $this->connection->executeStatement($query);
+                        }
+                    } else {
+                        $this->connection->transactional(function () use ($queries): void {
+                            foreach ($queries as $query) {
+                                $this->connection->executeStatement($query);
+                            }
+                        });
                     }
+                } catch (\Throwable $e) {
+                    $io->error(sprintf(
+                        'An error occurred while executing the query for trigger "%s": %s',
+                        $trigger->name,
+                        $e->getMessage()
+                    ));
+
+                    return Command::FAILURE;
                 }
             }
         }
@@ -177,5 +196,37 @@ final class TriggersSchemaUpdateCommand extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Build the PostgreSQL queries needed to "create or replace" the trigger.
+     *
+     * `CREATE OR REPLACE TRIGGER` only exists from PostgreSQL 14 onwards.
+     * On older servers we fall back to a `DROP TRIGGER IF EXISTS … ON …; CREATE TRIGGER …` pair.
+     *
+     * @return string[]
+     */
+    private function postgresCreateOrReplaceQueries(string $createTriggerSql, \Talleu\TriggerMapping\Model\ResolvedTrigger $trigger): array
+    {
+        if ($this->isPostgreSqlAtLeast14()) {
+            return [str_replace('CREATE TRIGGER', 'CREATE OR REPLACE TRIGGER', $createTriggerSql)];
+        }
+
+        return [
+            sprintf('DROP TRIGGER IF EXISTS %s ON %s;', $trigger->name, $trigger->table),
+            $createTriggerSql,
+        ];
+    }
+
+    private function isPostgreSqlAtLeast14(): bool
+    {
+        try {
+            $version = (int) $this->connection->fetchOne("SELECT current_setting('server_version_num')");
+        } catch (\Throwable) {
+            // Unable to detect the version — be conservative and assume modern syntax is OK.
+            return true;
+        }
+
+        return $version >= 140000;
     }
 }

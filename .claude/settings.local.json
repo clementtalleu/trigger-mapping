@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make test-mysql *)",
+      "Bash(make test-pgsql *)",
+      "Bash(docker compose *)",
+      "Bash(make test-unit *)",
+      "Bash(make test-docker-mysql *)",
+      "Bash(make test-docker-pgsql *)",
+      "Bash(make test-docker-sqlsrv *)",
+      "Bash(make test-docker *)",
+      "Bash(vendor/bin/phpunit tests/Unit/Factory/MappingCreatorTest.php --filter testAddsClassNameAndImportWhenClassExists)",
+      "Bash(make cs-check *)",
+      "Bash(make cs-fix *)",
+      "Bash(vendor/bin/phpunit -c phpunit-postgresql.xml.dist --filter \"testApplyModeGeneratesFiles|testNothingToDoWhenAllTriggersExistInDb\")",
+      "Bash(vendor/bin/phpunit -c phpunit-postgresql.xml.dist --filter testNothingToDoWhenAllTriggersExistInDb)",
+      "Bash(vendor/bin/phpunit -c phpunit-postgresql.xml.dist --filter \"testApplyModeGeneratesSqlFiles|testTriggerNotListedWhenAlreadyInDb\")",
+      "Bash(make test-docker-unit *)",
+      "Bash(vendor/bin/phpunit --testsuite=mysql --filter testExecuteApplyMode)",
+      "Bash(vendor/bin/phpunit --testsuite=mysql --filter testCreateFilesWithoutApplyIsRejected)",
+      "Bash(make coverage *)"
+    ]
+  }
+}

@@ -3,3 +3,8 @@ trigger_mapping:
     type: php
     namespace: Application
   migrations: false
+  # The bundle's "excludes" feature filters out trigger names from extraction.
+  # We use a unique sentinel name that is only created by the dedicated test fixture
+  # (see AbstractTriggerValidateSchemaTestCase::testExcludedTriggerIsIgnored).
+  excludes:
+    - excluded_trigger_for_test

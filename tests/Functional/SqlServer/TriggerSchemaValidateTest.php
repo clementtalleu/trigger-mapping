@@ -12,6 +12,14 @@ use Talleu\TriggerMapping\Tests\Functional\AbstractTriggerValidateSchemaTestCase
 
 final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestCase
 {
+    protected function createExcludedTrigger(string $triggerName): void
+    {
+        $this->executeSql(
+            "CREATE OR ALTER TRIGGER {$triggerName} ON sql_server_correctly_mapped_entity ".
+            "AFTER INSERT AS BEGIN SELECT 'noop' as msg END"
+        );
+    }
+
     protected function getCreateTriggerSql(string $triggerName, string $tableName, string $when, string $events): string
     {
         return <<<SQL
@@ -38,7 +46,6 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
         $command = $this->application->find('triggers:schema:validate');
         $commandTester = new CommandTester($command);
         $commandTester->execute(['--entity' => SqlServerCorrectlyMappedEntity::class]);
-        print_r($commandTester->getDisplay());
         $commandTester->assertCommandIsSuccessful();
         $this->assertStringContainsString('The database triggers are in sync with the mapping.', $commandTester->getDisplay());
     }
@@ -92,6 +99,28 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'not sync with the current mapping'));
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'not mapped'));
         $this->assertTrue(str_contains($commandTester->getDisplay(), 'correctly_mapped_trigger'));
+    }
+
+    public function testEventsMismatchIsReportedSpecifically(): void
+    {
+        // Entity expects ['UPDATE'], we create the trigger with INSERT instead.
+        $sql = $this->getCreateTriggerSql(
+            'correctly_mapped_trigger',
+            'sql_server_correctly_mapped_entity',
+            'AFTER',
+            'INSERT',
+        );
+        $this->executeSql($sql);
+
+        $command = $this->application->find('triggers:schema:validate');
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(['--entity' => SqlServerCorrectlyMappedEntity::class]);
+        $this->assertEquals($commandTester->getStatusCode(), Command::FAILURE);
+
+        $output = $commandTester->getDisplay();
+        $this->assertTrue(str_contains($output, 'events'));
+        $this->assertTrue(str_contains($output, 'UPDATE'));
+        $this->assertTrue(str_contains($output, 'INSERT'));
     }
 
     public function testTableWithoutEntity(): void

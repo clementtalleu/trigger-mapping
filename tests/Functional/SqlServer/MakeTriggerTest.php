@@ -37,6 +37,23 @@ final class MakeTriggerTest extends AbstractMakeTriggerTestCase
         $this->assertStringContainsString("on: ['UPDATE']", $entityContent);
     }
 
+    public function testBeforeRejectedOnSqlServer(): void
+    {
+        $command = $this->application->find('make:trigger');
+        $tester = new CommandTester($command);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/SQL Server does not support before/');
+
+        $tester->execute([
+            'entity-class' => NoTriggerEntity::class,
+            'trigger-name' => 'trg_make_before_ss',
+            'on' => 'INSERT',
+            'when' => 'BEFORE',
+            'storage' => 'sql',
+        ]);
+    }
+
     public function createDirs(): void
     {
         $filesystem = new Filesystem();

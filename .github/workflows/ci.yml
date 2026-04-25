@@ -28,6 +28,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           coverage: xdebug
+          extensions: pdo_mysql, pdo_pgsql, pdo_sqlsrv
 
       - name: Validate composer.json
         run: composer validate --strict
@@ -45,6 +46,9 @@ jobs:
       - name: Run phpstan
         run: vendor/bin/phpstan analyse src
 
+      - name: Run php-cs-fixer (dry-run)
+        run: PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix src --dry-run --diff --no-ansi
+
   functional_tests:
     runs-on: ubuntu-latest
     needs: unit_tests
@@ -53,7 +57,7 @@ jobs:
       matrix:
         php-version: ['8.2', '8.3', '8.4']
         symfony-version: ['6.4.*', '7.4.*']
-        platform: [mysql, postgresql]
+        platform: [mysql, postgresql, sqlserver]
         exclude:
           # Symfony 6.4 doesn't officially support PHP 8.4
           - php-version: '8.4'
@@ -67,6 +71,10 @@ jobs:
           - php-version: '8.4'
             symfony-version: '8.0.*'
             platform: postgresql
+          # Symfony 8 with SQL Server
+          - php-version: '8.4'
+            symfony-version: '8.0.*'
+            platform: sqlserver
 
     services:
       mysql:
@@ -96,6 +104,14 @@ jobs:
           --health-timeout=5s
           --health-retries=10
 
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'StrongPassw0rd'
+          MSSQL_PID: 'Developer'
+        ports: ['1433:1433']
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -105,6 +121,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           coverage: xdebug
+          extensions: pdo_mysql, pdo_pgsql, pdo_sqlsrv
 
       - name: Install Symfony ${{ matrix.symfony-version }}
         run: |
@@ -116,8 +133,13 @@ jobs:
       - name: Install Dependencies
         run: composer update --prefer-dist --no-progress
 
-      - name: Test cs-fixer
-        run: PHP_CS_FIXER_IGNORE_ENV=1 vendor/bin/php-cs-fixer fix src --dry-run --diff --no-ansi
+      - name: Wait for SQL Server to be ready
+        if: matrix.platform == 'sqlserver'
+        timeout-minutes: 2
+        run: |
+          until nc -z 127.0.0.1 1433; do echo "Waiting for SQL Server port..."; sleep 2; done
+          # Extra time for the SA login + master DB initialization
+          sleep 15
 
       - name: Run Functional Tests (MySQL)
         if: matrix.platform == 'mysql'
@@ -130,3 +152,9 @@ jobs:
         env:
           DATABASE_URL: 'postgresql://test_user:test_password@127.0.0.1:5432/test_db?serverVersion=15'
         run: vendor/bin/phpunit --testsuite=postgresql
+
+      - name: Run Functional Tests (SQL Server)
+        if: matrix.platform == 'sqlserver'
+        env:
+          DATABASE_URL: 'pdo-sqlsrv://sa:StrongPassw0rd@127.0.0.1:1433/test_db?serverVersion=2022&charset=UTF-8'
+        run: vendor/bin/phpunit -c phpunit-sqlserver.xml.dist

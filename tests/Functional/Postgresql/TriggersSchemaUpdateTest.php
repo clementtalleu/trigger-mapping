@@ -10,6 +10,11 @@ use Talleu\TriggerMapping\Tests\Functional\AbstractTriggersSchemaUpdateTestCase;
 
 final class TriggersSchemaUpdateTest extends AbstractTriggersSchemaUpdateTestCase
 {
+    protected function getTriggerEntityClass(): string
+    {
+        return UpdateSchemaTestEntity::class;
+    }
+
     public function testExecuteApplyMode(): void
     {
         $this->createSchemaForEntities([UpdateSchemaTestEntity::class]);

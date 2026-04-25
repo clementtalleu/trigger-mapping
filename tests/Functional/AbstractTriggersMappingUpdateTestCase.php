@@ -7,8 +7,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\NullOutput;
+use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Filesystem\Filesystem;
 use Talleu\TriggerMapping\Tests\Application\Entity\UpdateMappingTestEntity;
 
@@ -72,6 +74,43 @@ abstract class AbstractTriggersMappingUpdateTestCase extends KernelTestCase
     protected function executeSql(string $sql): void
     {
         $this->connection->executeStatement($sql);
+    }
+
+    public function testCreateFilesWithoutApplyIsRejected(): void
+    {
+        $command = $this->application->find('triggers:mapping:update');
+        $tester = new CommandTester($command);
+        $tester->execute(['--create-files' => true]);
+
+        // The command rejects --create-files without --apply with INVALID exit code.
+        self::assertSame(Command::INVALID, $tester->getStatusCode());
+        // The full message is wrapped by SymfonyStyle; match a stable substring.
+        self::assertStringContainsString('You cannot run this command', $tester->getDisplay());
+        self::assertStringContainsString('--create-files', $tester->getDisplay());
+    }
+
+    public function testDryRunDoesNotMutateEntity(): void
+    {
+        $this->createSchemaForEntities([UpdateMappingTestEntity::class]);
+
+        $sql = $this->getCreateTriggerSql(
+            'trigger_dry_run',
+            'update_mapping_test_entity',
+            'AFTER',
+            'INSERT'
+        );
+        $this->executeSql($sql);
+
+        $contentBefore = file_get_contents((new \ReflectionClass(UpdateMappingTestEntity::class))->getFileName());
+
+        $command = $this->application->find('triggers:mapping:update');
+        $tester = new CommandTester($command);
+        $tester->execute([]);
+        $tester->assertCommandIsSuccessful();
+
+        $contentAfter = file_get_contents((new \ReflectionClass(UpdateMappingTestEntity::class))->getFileName());
+        self::assertSame($contentBefore, $contentAfter, 'Dry-run mode must not modify the entity file');
+        self::assertStringContainsString('To apply these changes', $tester->getDisplay());
     }
 
     private function backupEntityFile(): void

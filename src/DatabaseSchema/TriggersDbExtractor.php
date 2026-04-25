@@ -5,10 +5,24 @@ declare(strict_types=1);
 namespace Talleu\TriggerMapping\DatabaseSchema;
 
 use Doctrine\Migrations\DependencyFactory;
+use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Platform\DatabasePlatformResolver;
 
 final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
 {
+    /**
+     * Returns true if the given DB identifier (trigger / function / table name)
+     * is safe to inline in generated SQL, file paths and PHP migration source.
+     * If a database happens to contain a trigger with a name violating this
+     * pattern, the bundle silently skips it during extraction so that no
+     * unsafe value ever reaches the file system or the generated migration.
+     */
+    private function isSafeIdentifier(string $value): bool
+    {
+        return '' !== $value
+            && 1 === preg_match(Trigger::IDENTIFIER_PATTERN, $value);
+    }
+
     /**
      * @param string[] $excludedTriggers
      */
@@ -27,39 +41,53 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
         $connection = $this->dependencyFactory->getConnection();
 
         if ($this->databasePlatformResolver->isMySQL()) {
-            $sql = "SELECT
+            $sql = 'SELECT
                         TRIGGER_NAME,
                         EVENT_OBJECT_TABLE,
                         EVENT_MANIPULATION,
                         ACTION_TIMING,
                         ACTION_STATEMENT
                     FROM information_schema.TRIGGERS
-                    WHERE TRIGGER_SCHEMA = DATABASE()";
+                    WHERE TRIGGER_SCHEMA = DATABASE()';
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizeMysqlTriggers($rawTriggers);
         } elseif ($this->databasePlatformResolver->isSQLServer()) {
-            $sql = "SELECT 
+            // - parent_class = 1 filters out database-level DDL triggers (only DML triggers on tables/views).
+            // - is_instead_of_trigger distinguishes INSTEAD OF triggers from AFTER/FOR triggers.
+            // - sys.sql_modules.definition gives us the trigger body (was always empty before).
+            // - sys.schemas + SCHEMA_NAME() restrict the result to the current default schema.
+            // - parent_class = 1 filters out database-level DDL triggers (only DML triggers on tables/views).
+            // - is_instead_of_trigger distinguishes INSTEAD OF triggers from AFTER/FOR triggers.
+            // - sys.sql_modules.definition gives us the trigger body (was always empty before).
+            // - sys.schemas + SCHEMA_NAME() restrict the result to the current default schema.
+            // - The CASE on TE.type avoids depending on sys.trigger_event_types whose mapping
+            //   rows are not always populated for DML events depending on the SQL Server image.
+            $sql = "SELECT
                         T.name AS name,
-                        T.object_id AS id,
-                        T.parent_class_desc AS parent_type,
-                        T.type_desc AS type,
-                        TE.type_desc AS event_type,
+                        T.is_instead_of_trigger AS is_instead_of,
+                        T.is_disabled AS is_disabled,
+                        CASE TE.type
+                            WHEN 1 THEN 'INSERT'
+                            WHEN 2 THEN 'UPDATE'
+                            WHEN 3 THEN 'DELETE'
+                            ELSE NULL
+                        END AS event_type,
                         O.name AS table_name,
-                        TT.type_name AS type_name
+                        S.name AS schema_name,
+                        SM.definition AS body
                     FROM sys.triggers AS T
-                    INNER JOIN sys.trigger_events AS TE
-                    ON T.object_id = TE.object_id
-                    INNER JOIN sys.objects AS O
-                    ON T.parent_id = O.object_id
-                    LEFT JOIN sys.trigger_event_types AS TT
-                    ON TE.type = TT.type";
-
+                    INNER JOIN sys.trigger_events AS TE ON T.object_id = TE.object_id
+                    INNER JOIN sys.objects AS O ON T.parent_id = O.object_id
+                    INNER JOIN sys.schemas AS S ON O.schema_id = S.schema_id
+                    LEFT JOIN sys.sql_modules AS SM ON T.object_id = SM.object_id
+                    WHERE T.parent_class = 1
+                      AND S.name = SCHEMA_NAME()";
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizeSqlServerTriggers($rawTriggers);
         } elseif ($this->databasePlatformResolver->isPostgreSQL()) {
-            $sql = "SELECT
+            $sql = 'SELECT
                         tg.tgname AS trigger_name,
                         tbl.relname AS table_name,
                         p.proname AS function_name,
@@ -69,7 +97,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                     JOIN pg_class tbl ON tg.tgrelid = tbl.oid
                     JOIN pg_proc p ON tg.tgfoid = p.oid
                     JOIN pg_namespace ns ON tbl.relnamespace = ns.oid
-                    WHERE NOT tg.tgisinternal";
+                    WHERE NOT tg.tgisinternal';
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizePostgresqlTriggers($rawTriggers);
@@ -107,14 +135,20 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
     {
         $normalized = [];
         foreach ($rawTriggers as $trigger) {
-            $name = (string)$trigger['TRIGGER_NAME'];
+            $name = (string) $trigger['TRIGGER_NAME'];
+            $tableName = (string) $trigger['EVENT_OBJECT_TABLE'];
+
+            if (!$this->isSafeIdentifier($name) || !$this->isSafeIdentifier($tableName)) {
+                continue;
+            }
+
             $normalized[$name] = [
                 'name' => $name,
-                'table' => (string)$trigger['EVENT_OBJECT_TABLE'],
-                'events' => [(string)$trigger['EVENT_MANIPULATION']],
-                'when' => (string)$trigger['ACTION_TIMING'],
+                'table' => $tableName,
+                'events' => [(string) $trigger['EVENT_MANIPULATION']],
+                'when' => (string) $trigger['ACTION_TIMING'],
                 'scope' => 'ROW',
-                'content' => (string)$trigger['ACTION_STATEMENT'],
+                'content' => (string) $trigger['ACTION_STATEMENT'],
                 'function' => null,
                 'definition' => null,
             ];
@@ -141,17 +175,33 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
     {
         $normalized = [];
         foreach ($rawTriggers as $trigger) {
-            $name = (string)$trigger['name'];
-            $normalized[$name] = [
-                'name' => $name,
-                'table' => (string)$trigger['table_name'],
-                'events' => [(string)$trigger['event_type']],
-                'when' => 'AFTER',
-                'scope' => 'ROW',
-                'content' => '',
-                'function' => null,
-                'definition' => null,
-            ];
+            $name = (string) $trigger['name'];
+            $tableName = (string) $trigger['table_name'];
+            $event = strtoupper((string) $trigger['event_type']);
+
+            if (!$this->isSafeIdentifier($name) || !$this->isSafeIdentifier($tableName)) {
+                continue;
+            }
+
+            if (!isset($normalized[$name])) {
+                $normalized[$name] = [
+                    'name' => $name,
+                    'table' => $tableName,
+                    'events' => [],
+                    'when' => ((bool) $trigger['is_instead_of']) ? 'INSTEAD OF' : 'AFTER',
+                    // SQL Server triggers fire once per statement, not per row.
+                    'scope' => 'STATEMENT',
+                    'content' => (string) ($trigger['body'] ?? ''),
+                    'function' => null,
+                    'definition' => null,
+                ];
+            }
+
+            // sys.trigger_events returns one row per event — aggregate them all
+            // (without this guard, 'AFTER INSERT, UPDATE' would only keep one event).
+            if ('' !== $event && !in_array($event, $normalized[$name]['events'], true)) {
+                $normalized[$name]['events'][] = $event;
+            }
         }
 
         return $normalized;
@@ -175,9 +225,15 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
     {
         $normalized = [];
         foreach ($rawTriggers as $trigger) {
+            $name = (string) $trigger['trigger_name'];
+            $tableName = (string) $trigger['table_name'];
+            $functionName = (string) $trigger['function_name'];
 
-            $name = (string)$trigger['trigger_name'];
-            $definition = (string)$trigger['definition'];
+            if (!$this->isSafeIdentifier($name) || !$this->isSafeIdentifier($tableName) || !$this->isSafeIdentifier($functionName)) {
+                continue;
+            }
+
+            $definition = (string) $trigger['definition'];
 
             $upperDefinition = strtoupper($definition);
             $when = 'UNKNOWN';
@@ -207,13 +263,13 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
 
             $normalized[$name] = [
                 'name' => $name,
-                'table' => (string)$trigger['table_name'],
+                'table' => $tableName,
                 'events' => $events,
                 'when' => $when,
                 'scope' => $scope,
-                'content' => (string)$trigger['content'],
-                'function' => (string)$trigger['function_name'],
-                'definition' => $definition
+                'content' => (string) $trigger['content'],
+                'function' => $functionName,
+                'definition' => $definition,
             ];
         }
 

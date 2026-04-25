@@ -29,7 +29,6 @@ return static function (ContainerConfigurator $container): void {
         ->args([
             service('doctrine.migrations.dependency_factory'),
             service('trigger_mapping.factory.trigger_definition_factory'),
-            service('trigger_mapping.factory.trigger_definition_factory'),
         ]);
 
     $services->set('trigger_mapping.database.triggers_db_extractor', TriggersDbExtractor::class)
@@ -72,5 +71,3 @@ return static function (ContainerConfigurator $container): void {
             service('doctrine.orm.entity_manager'),
         ]);
 };
-
-
