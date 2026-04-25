@@ -10,6 +10,10 @@
         <env name="APP_ENV" value="test"/>
         <env name="APP_DEBUG" value="1"/>
         <env name="APP_SECRET" value="test_secret"/>
+        <!-- Quiet down Symfony's default logger so EventDispatcher [debug] notifications
+             don't spam phpunit's output. The HttpKernel\Log\Logger reads SHELL_VERBOSITY:
+             -1 means "quiet" → only ERROR-level messages are emitted. -->
+        <env name="SHELL_VERBOSITY" value="-1"/>
 
         <env name="KERNEL_CLASS" value="Talleu\TriggerMapping\Tests\Application\Kernel"/>
         <!-- Default: MySQL. For PostgreSQL use `phpunit -c phpunit-postgresql.xml.dist`, for SQL Server `phpunit -c phpunit-sqlserver.xml.dist`. -->

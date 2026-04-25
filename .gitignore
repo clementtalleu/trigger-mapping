@@ -8,3 +8,4 @@ test.php
 /.phpunit.cache/
 coverage.xml
 composer.lock
+/.claude

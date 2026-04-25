@@ -21,6 +21,8 @@ use Symfony\Component\Filesystem\Filesystem;
  */
 abstract class AbstractTriggersSchemaDiffTestCase extends KernelTestCase
 {
+    use DatabaseCleanupTrait;
+
     protected Application $application;
     protected Connection $connection;
     protected EntityManagerInterface $entityManager;
@@ -37,8 +39,8 @@ abstract class AbstractTriggersSchemaDiffTestCase extends KernelTestCase
         $this->entityManager = $container->get('doctrine.orm.entity_manager');
         $this->triggersDir = $kernel->getProjectDir().'/triggers';
 
-        $this->runCommand('doctrine:database:drop --force --if-exists');
-        $this->runCommand('doctrine:database:create');
+        $this->runCommand('doctrine:database:create --if-not-exists');
+        $this->cleanupDatabase($this->connection);
 
         $fs = new Filesystem();
         if ($fs->exists($this->triggersDir)) {

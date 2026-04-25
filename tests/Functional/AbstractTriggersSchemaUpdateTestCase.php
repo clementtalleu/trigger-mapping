@@ -17,6 +17,8 @@ use Symfony\Component\Console\Tester\CommandTester;
 
 abstract class AbstractTriggersSchemaUpdateTestCase extends KernelTestCase
 {
+    use DatabaseCleanupTrait;
+
     protected Application $application;
     protected Connection $connection;
     protected EntityManagerInterface $entityManager;
@@ -73,24 +75,14 @@ abstract class AbstractTriggersSchemaUpdateTestCase extends KernelTestCase
         $this->connection = $container->get('doctrine.dbal.default_connection');
         $this->entityManager = $container->get('doctrine.orm.entity_manager');
 
-        $this->cleanup();
-        $this->runCommand('doctrine:database:drop --force --if-exists');
-        $this->runCommand('doctrine:database:create');
+        $this->runCommand('doctrine:database:create --if-not-exists');
+        $this->cleanupDatabase($this->connection);
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->cleanup();
-    }
-
-    private function cleanup(): void
-    {
-        $schemaManager = $this->connection->createSchemaManager();
-        $tables = $schemaManager->listTables();
-        foreach ($tables as $table) {
-            $schemaManager->dropTable($table->getName());
-        }
+        $this->cleanupDatabase($this->connection);
     }
 
     /**

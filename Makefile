@@ -33,7 +33,19 @@ sh: ## Open an interactive shell inside the php container
 	$(DOCKER_PHP) bash
 
 # ----- Tests using LOCAL php (fast, requires the right extensions installed) -----
-test: test-unit test-mysql test-pgsql test-sqlsrv ## Run all tests using local PHP
+# Auto-detect whether pdo_sqlsrv is loaded so SQL Server tests are only included
+# when the extension is actually available — avoids "could not find driver" noise
+# for contributors who haven't installed msodbcsql + pdo_sqlsrv locally.
+HAS_SQLSRV := $(shell php -r "echo extension_loaded('pdo_sqlsrv') ? 1 : 0;" 2>/dev/null)
+
+ifeq ($(HAS_SQLSRV),1)
+test: test-unit test-mysql test-pgsql test-sqlsrv ## Run unit + MySQL + PostgreSQL + SQL Server tests with local PHP
+else
+test: test-unit test-mysql test-pgsql ## Run unit + MySQL + PostgreSQL tests with local PHP (SQL Server skipped — install pdo_sqlsrv or use `make test-docker`)
+	@echo ""
+	@echo "ℹ️  SQL Server tests skipped — pdo_sqlsrv is not loaded in your local PHP."
+	@echo "   Use \`make test-docker\` to run the full suite, or install pdo_sqlsrv (see CONTRIBUTING.md)."
+endif
 
 test-mysql: ## Run MySQL functional tests (local PHP)
 	vendor/bin/phpunit --testsuite=mysql

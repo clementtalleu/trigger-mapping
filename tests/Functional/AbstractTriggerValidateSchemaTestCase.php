@@ -22,6 +22,8 @@ use Talleu\TriggerMapping\Tests\Application\Entity\TriggerBadParamsEntity;
 
 abstract class AbstractTriggerValidateSchemaTestCase extends KernelTestCase
 {
+    use DatabaseCleanupTrait;
+
     protected CommandTester $commandTester;
     protected Connection $connection;
     protected EntityManagerInterface $entityManager;
@@ -35,8 +37,12 @@ abstract class AbstractTriggerValidateSchemaTestCase extends KernelTestCase
         $this->connection = $container->get('doctrine.dbal.default_connection');
         $this->entityManager = $container->get('doctrine.orm.entity_manager');
 
-        $this->runCommand('doctrine:database:drop --force --if-exists');
-        $this->runCommand('doctrine:database:create');
+        // Make sure the test database exists (SQL Server doesn't auto-create it).
+        $this->runCommand('doctrine:database:create --if-not-exists');
+        // Always start each test from an empty schema — works around the fact that
+        // `doctrine:database:drop` is flaky on SQL Server in CI when the runner still
+        // holds an open connection to the database.
+        $this->cleanupDatabase($this->connection);
 
         $this->createSchemaForEntities([
             NoTriggerEntity::class,

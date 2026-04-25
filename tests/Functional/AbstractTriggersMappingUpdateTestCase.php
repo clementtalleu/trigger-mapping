@@ -16,6 +16,8 @@ use Talleu\TriggerMapping\Tests\Application\Entity\UpdateMappingTestEntity;
 
 abstract class AbstractTriggersMappingUpdateTestCase extends KernelTestCase
 {
+    use DatabaseCleanupTrait;
+
     protected Application $application;
     protected Connection $connection;
     protected EntityManagerInterface $entityManager;
@@ -36,9 +38,9 @@ abstract class AbstractTriggersMappingUpdateTestCase extends KernelTestCase
         $this->connection = $container->get('doctrine.dbal.default_connection');
         $this->entityManager = $container->get('doctrine.orm.entity_manager');
 
-        // Drop and create the database
-        $this->runCommand('doctrine:database:drop --force --if-exists');
-        $this->runCommand('doctrine:database:create');
+        // Make sure the database exists, then bring it back to an empty state.
+        $this->runCommand('doctrine:database:create --if-not-exists');
+        $this->cleanupDatabase($this->connection);
 
         // Prepare the entity file for modification tracking
         $this->backupEntityFile();

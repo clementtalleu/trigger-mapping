@@ -10,6 +10,7 @@
         <env name="APP_ENV" value="test"/>
         <env name="APP_DEBUG" value="1"/>
         <env name="APP_SECRET" value="test_secret"/>
+        <env name="SHELL_VERBOSITY" value="-1"/>
 
         <env name="KERNEL_CLASS" value="Talleu\TriggerMapping\Tests\Application\Kernel"/>
         <env name="DATABASE_URL" value="pdo-sqlsrv://sa:StrongPassw0rd@127.0.0.1:1433/test_db?serverVersion=2022&amp;charset=UTF-8"/>
