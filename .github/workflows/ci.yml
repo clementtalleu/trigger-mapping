@@ -28,7 +28,9 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           coverage: xdebug
-          extensions: pdo_mysql, pdo_pgsql, pdo_sqlsrv
+          # pdo_sqlsrv is platform-specific; only the functional sqlserver job needs it.
+          # Keeping it out of unit_tests avoids requiring msodbcsql18 here.
+          extensions: pdo_mysql, pdo_pgsql
 
       - name: Validate composer.json
         run: composer validate --strict
@@ -116,12 +118,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # The pdo_sqlsrv PHP extension is just a wrapper — it requires the
+      # Microsoft ODBC Driver 18 to be present at the OS level. We install
+      # it BEFORE setup-php so the extension can link properly at startup.
+      - name: Install Microsoft ODBC Driver 18 for SQL Server
+        if: matrix.platform == 'sqlserver'
+        run: |
+          set -eux
+          curl -sSL -O "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb
+          rm packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
       - name: Setup PHP ${{ matrix.php-version }}
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
           coverage: xdebug
-          extensions: pdo_mysql, pdo_pgsql, pdo_sqlsrv
+          # pdo_sqlsrv is only added on the sqlserver matrix entry — installing
+          # it elsewhere would fail because msodbcsql18 isn't installed there.
+          extensions: ${{ matrix.platform == 'sqlserver' && 'pdo_mysql, pdo_pgsql, pdo_sqlsrv' || 'pdo_mysql, pdo_pgsql' }}
 
       - name: Install Symfony ${{ matrix.symfony-version }}
         run: |
