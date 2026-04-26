@@ -36,7 +36,7 @@ final class TriggerCreatorTest extends TestCase
                 self::assertSame('App\\Triggers\\TrgFoo', $fqcn);
                 self::assertStringContainsString('PostgresqlTrigger.tpl.php', $template);
                 self::assertSame('INSERT OR UPDATE', $params['events']);
-                // RETURN value matrix: AFTER => NULL (current behaviour, will be revisited in Phase 2.3)
+                // RETURN value matrix: AFTER => NULL
                 self::assertSame('NULL', $params['return_value']);
 
                 return 'app/Triggers/TrgFoo.php';
@@ -250,6 +250,14 @@ final class TriggerCreatorTest extends TestCase
 
     public function testMigrationsAreSkippedWhenDisabled(): void
     {
+        // This test exercises that the migrations subsystem is *never* touched when
+        // `migrations: false` — to do so we need a real DependencyFactory mock with
+        // an `expects(never())`. Skip when the optional dep is missing (covered by
+        // testMigrationsAreSkippedWhenDependencyFactoryIsNull below).
+        if (!class_exists(DependencyFactory::class)) {
+            self::markTestSkipped('doctrine/doctrine-migrations-bundle is not installed in this build.');
+        }
+
         $generator = $this->createMock(Generator::class);
         $generator->method('generateFile')->willReturn('x');
 
@@ -266,6 +274,30 @@ final class TriggerCreatorTest extends TestCase
         );
 
         $creator->create([$this->resolved(name: 't', events: ['INSERT'], when: 'AFTER', storage: 'sql')]);
+    }
+
+    public function testMigrationsAreSkippedWhenDependencyFactoryIsNull(): void
+    {
+        // When it isn't installed, the DI extension injects null instead of a
+        // DependencyFactory and migration generation must be silently skipped
+        // even if the user enables `migrations: true`.
+        $generator = $this->createMock(Generator::class);
+        $generator->method('generateFile')->willReturn('x');
+
+        $creator = new TriggerCreator(
+            generator: $generator,
+            storageResolver: $this->resolverWithDir('/tmp/triggers', 'App\\Triggers'),
+            databasePlatformResolver: $this->platformResolver('mysql'),
+            dependencyFactory: null,
+            migrations: true,
+        );
+
+        // Must not throw despite migrations being enabled.
+        $details = $creator->create(
+            [$this->resolved(name: 't', events: ['INSERT'], when: 'AFTER', storage: 'sql')]
+        );
+
+        self::assertSame([], $details);
     }
 
     /**
@@ -291,11 +323,15 @@ final class TriggerCreatorTest extends TestCase
 
     private function creatorWithPlatform(string $platform, Generator $generator, bool $migrations): TriggerCreator
     {
+        // We pass `null` for the DependencyFactory by default so the test suite
+        // also runs when doctrine/doctrine-migrations-bundle is uninstalled
+        // (covered by the `no_migrations_bundle_tests` CI job). Tests that need
+        // to assert specific calls on the factory mock it explicitly.
         return new TriggerCreator(
             generator: $generator,
             storageResolver: $this->resolverWithDir('/tmp/triggers', 'App\\Triggers'),
             databasePlatformResolver: $this->platformResolver($platform),
-            dependencyFactory: $this->createMock(DependencyFactory::class),
+            dependencyFactory: null,
             migrations: $migrations,
         );
     }

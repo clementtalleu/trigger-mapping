@@ -80,10 +80,6 @@ final class TriggerTest extends TestCase
         self::assertNotEmpty($entity::class);
     }
 
-    // -------------------------------------------------------------------------
-    // Validation (audit Phase 1.1 — closes RCE / SQLi / path traversal at boundary)
-    // -------------------------------------------------------------------------
-
     /**
      * @dataProvider invalidIdentifierProvider
      */

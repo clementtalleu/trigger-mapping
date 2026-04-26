@@ -8,7 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Talleu\TriggerMapping\Attribute\Trigger;
 
 /**
- * Regression fixture for audit finding F-2 / Phase 3.1: a PostgreSQL trigger
+ * Regression fixture for audit finding F-2
  * firing on `INSERT OR UPDATE OR DELETE` was unparseable with the old
  * text-based extraction. The new bitfield-based decoding must surface the
  * three events correctly.
