@@ -40,7 +40,9 @@ return static function (ContainerConfigurator $container): void {
             service('maker.generator'),
             service('trigger_mapping.storage_resolver'),
             service('trigger_mapping.platform_resolver'),
-            service('doctrine.migrations.dependency_factory'),
+            // doctrine-migrations-bundle is an optional dep — `nullOnInvalid()` injects
+            // null when the service is missing instead of failing container compilation.
+            service('doctrine.migrations.dependency_factory')->nullOnInvalid(),
             '%trigger_mapping.migrations%',
         ]);
 

@@ -20,11 +20,10 @@
     "symfony/http-kernel": "^6.0 || ^7.0 || ^8.0",
     "doctrine/dbal": "^3.0 || ^4.0",
     "doctrine/doctrine-bundle": "^2.7 || ^3.0",
-    "doctrine/orm": "^2.16 || ^3.0",
-    "doctrine/doctrine-migrations-bundle": "^3.2 || ^4.0"
+    "doctrine/orm": "^2.16 || ^3.0"
   },
   "suggest": {
-    "doctrine/doctrine-migrations-bundle": "Required to automatically generate migrations for your triggers (‘migrations: true’ configuration)."
+    "doctrine/doctrine-migrations-bundle": "^3.2 || ^4.0 — required only for the `migrations: true` configuration (auto-generate migration files for your triggers)."
   },
   "require-dev": {
     "phpunit/phpunit": "^11.0",
@@ -34,7 +33,8 @@
     "symfony/framework-bundle": "^7.2 || ^8.0",
     "symfony/test-pack": "^1.2",
     "symfony/maker-bundle": "^1.50",
-    "symfony/yaml": "^7.3 || ^8.0"
+    "symfony/yaml": "^7.3 || ^8.0",
+    "doctrine/doctrine-migrations-bundle": "^3.2 || ^4.0"
   },
   "license": "MIT"
 }

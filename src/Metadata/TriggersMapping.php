@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Talleu\TriggerMapping\Metadata;
 
-use Doctrine\Migrations\DependencyFactory;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\Entity;
 use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Exception\NotAnEntityException;
@@ -13,7 +13,7 @@ use Talleu\TriggerMapping\Factory\TriggerDefinitionFactory;
 final readonly class TriggersMapping implements TriggersMappingInterface
 {
     public function __construct(
-        private DependencyFactory        $dependencyFactory,
+        private EntityManagerInterface   $entityManager,
         private TriggerDefinitionFactory $triggerDefinitionFactory,
     ) {
     }
@@ -27,7 +27,7 @@ final readonly class TriggersMapping implements TriggersMappingInterface
             throw new NotAnEntityException($entityName);
         }
 
-        $entitiesMetadata = $this->dependencyFactory->getEntityManager()->getMetadataFactory()->getAllMetadata();
+        $entitiesMetadata = $this->entityManager->getMetadataFactory()->getAllMetadata();
 
         $triggers = [];
         foreach ($entitiesMetadata as $metadatum) {

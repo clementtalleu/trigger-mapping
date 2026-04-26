@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Talleu\TriggerMapping\DatabaseSchema;
 
-use Doctrine\Migrations\DependencyFactory;
+use Doctrine\DBAL\Connection;
+use Doctrine\ORM\EntityManagerInterface;
 use Talleu\TriggerMapping\Attribute\Trigger;
 use Talleu\TriggerMapping\Platform\DatabasePlatformResolver;
 
@@ -27,7 +28,8 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
      * @param string[] $excludedTriggers
      */
     public function __construct(
-        private DependencyFactory        $dependencyFactory,
+        private Connection               $connection,
+        private EntityManagerInterface   $entityManager,
         private DatabasePlatformResolver $databasePlatformResolver,
         private array                    $excludedTriggers,
     ) {
@@ -38,14 +40,18 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
      */
     public function listTriggers(?string $entityName = null): array
     {
-        $connection = $this->dependencyFactory->getConnection();
+        $connection = $this->connection;
 
         if ($this->databasePlatformResolver->isMySQL()) {
+            // ACTION_ORIENTATION is part of the SQL standard and exists on both
+            // MySQL 5.7+ and MariaDB. MariaDB 10.11+ even supports STATEMENT-level
+            // triggers — which we used to silently report as ROW.
             $sql = 'SELECT
                         TRIGGER_NAME,
                         EVENT_OBJECT_TABLE,
                         EVENT_MANIPULATION,
                         ACTION_TIMING,
+                        ACTION_ORIENTATION,
                         ACTION_STATEMENT
                     FROM information_schema.TRIGGERS
                     WHERE TRIGGER_SCHEMA = DATABASE()';
@@ -87,17 +93,48 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizeSqlServerTriggers($rawTriggers);
         } elseif ($this->databasePlatformResolver->isPostgreSQL()) {
-            $sql = 'SELECT
+            // The pg_trigger.tgtype column is a bitfield encoding timing/scope/events
+            // exactly. Decoding it (instead of grepping the textual pg_get_triggerdef
+            // output) fixes audit finding F-2: cases like `BEFORE INSERT OR UPDATE OR DELETE`
+            // were unparseable with the old approach because none of the words were
+            // surrounded by spaces on both sides.
+            //
+            // Filters:
+            //   - NOT tg.tgisinternal     : exclude PostgreSQL-managed internal triggers
+            //   - tg.tgconstraint = 0     : exclude FK enforcement triggers
+            //   - tgparentid             : exclude partition-inherited triggers (PG ≥ 13).
+            //                               We use to_regclass to detect availability so the
+            //                               query keeps working on PG 12.
+            //   - ns.nspname = ANY(current_schemas(false)) : restrict to user schemas reachable
+            //                               via the search_path (no system / pg_catalog leak).
+            $hasTgParentId = (bool) $connection->fetchOne(
+                "SELECT 1 FROM pg_attribute WHERE attrelid = 'pg_trigger'::regclass AND attname = 'tgparentid'"
+            );
+            $partitionFilter = $hasTgParentId ? 'AND tg.tgparentid = 0' : '';
+
+            $sql = sprintf(
+                'SELECT
                         tg.tgname AS trigger_name,
                         tbl.relname AS table_name,
                         p.proname AS function_name,
+                        ns.nspname AS schema_name,
+                        tg.tgtype AS tgtype,
+                        tg.tgconstraint AS tgconstraint,
+                        pg_get_expr(tg.tgqual, tg.tgrelid) AS when_condition,
+                        tg.tgoldtable AS old_transition_table,
+                        tg.tgnewtable AS new_transition_table,
                         pg_get_triggerdef(tg.oid) AS definition,
                         p.prosrc AS content
                     FROM pg_trigger tg
                     JOIN pg_class tbl ON tg.tgrelid = tbl.oid
                     JOIN pg_proc p ON tg.tgfoid = p.oid
                     JOIN pg_namespace ns ON tbl.relnamespace = ns.oid
-                    WHERE NOT tg.tgisinternal';
+                    WHERE NOT tg.tgisinternal
+                      AND tg.tgconstraint = 0
+                      %s
+                      AND ns.nspname = ANY(current_schemas(false))',
+                $partitionFilter
+            );
 
             $rawTriggers = $connection->fetchAllAssociative($sql);
             $triggers = $this->normalizePostgresqlTriggers($rawTriggers);
@@ -108,7 +145,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
         // Here, we will assume that it is a valid entity name, as it has been verified beforehand. If this is not the case, it will crash, and that's too bad.
         if (null !== $entityName) {
             /** @var class-string $entityName */
-            $tableName = $this->dependencyFactory->getEntityManager()->getMetadataFactory()->getMetadataFor($entityName)->getTableName();
+            $tableName = $this->entityManager->getMetadataFactory()->getMetadataFor($entityName)->getTableName();
             return array_filter($triggers, function ($trigger) use ($tableName) {
                 return $trigger['table'] === $tableName;
             });
@@ -142,12 +179,16 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                 continue;
             }
 
+            // ACTION_ORIENTATION is `ROW` or `STATEMENT` on MariaDB 10.11+.
+            // Older MySQL/MariaDB always return `ROW` — same effective behaviour as before.
+            $scope = strtoupper((string) ($trigger['ACTION_ORIENTATION'] ?? 'ROW'));
+
             $normalized[$name] = [
                 'name' => $name,
                 'table' => $tableName,
                 'events' => [(string) $trigger['EVENT_MANIPULATION']],
                 'when' => (string) $trigger['ACTION_TIMING'],
-                'scope' => 'ROW',
+                'scope' => $scope,
                 'content' => (string) $trigger['ACTION_STATEMENT'],
                 'function' => null,
                 'definition' => null,
@@ -221,6 +262,19 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
      * function: ?string
      * }>
      */
+    /**
+     * pg_trigger.tgtype bitfield layout (see PostgreSQL source `src/include/catalog/pg_trigger.h`).
+     * Decoding the raw integer is exact and avoids the fragile text-parsing of
+     * `pg_get_triggerdef` (which fails on `INSERT OR UPDATE OR DELETE` etc.).
+     */
+    private const PG_TGTYPE_ROW = 1 << 0;        // 1
+    private const PG_TGTYPE_BEFORE = 1 << 1;     // 2
+    private const PG_TGTYPE_INSERT = 1 << 2;     // 4
+    private const PG_TGTYPE_DELETE = 1 << 3;     // 8
+    private const PG_TGTYPE_UPDATE = 1 << 4;     // 16
+    private const PG_TGTYPE_TRUNCATE = 1 << 5;   // 32
+    private const PG_TGTYPE_INSTEAD = 1 << 6;    // 64
+
     private function normalizePostgresqlTriggers(array $rawTriggers): array
     {
         $normalized = [];
@@ -233,32 +287,28 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                 continue;
             }
 
-            $definition = (string) $trigger['definition'];
+            $tgtype = (int) $trigger['tgtype'];
 
-            $upperDefinition = strtoupper($definition);
-            $when = 'UNKNOWN';
-            if (str_contains($upperDefinition, 'BEFORE')) {
-                $when = 'BEFORE';
-            } elseif (str_contains($upperDefinition, 'AFTER')) {
-                $when = 'AFTER';
-            }
+            $when = match (true) {
+                (bool) ($tgtype & self::PG_TGTYPE_INSTEAD) => 'INSTEAD OF',
+                (bool) ($tgtype & self::PG_TGTYPE_BEFORE) => 'BEFORE',
+                default => 'AFTER',
+            };
 
-            $scope = 'UNKNOWN';
-            if (str_contains($upperDefinition, ' ROW ')) {
-                $scope = 'ROW';
-            } elseif (str_contains($upperDefinition, ' STATEMENT ')) {
-                $scope = 'STATEMENT';
-            }
+            $scope = ($tgtype & self::PG_TGTYPE_ROW) ? 'ROW' : 'STATEMENT';
 
             $events = [];
-            if (str_contains($upperDefinition, ' INSERT ')) {
+            if ($tgtype & self::PG_TGTYPE_INSERT) {
                 $events[] = 'INSERT';
             }
-            if (str_contains($upperDefinition, ' UPDATE ')) {
+            if ($tgtype & self::PG_TGTYPE_UPDATE) {
                 $events[] = 'UPDATE';
             }
-            if (str_contains($upperDefinition, ' DELETE ')) {
+            if ($tgtype & self::PG_TGTYPE_DELETE) {
                 $events[] = 'DELETE';
+            }
+            if ($tgtype & self::PG_TGTYPE_TRUNCATE) {
+                $events[] = 'TRUNCATE';
             }
 
             $normalized[$name] = [
@@ -269,7 +319,7 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
                 'scope' => $scope,
                 'content' => (string) $trigger['content'],
                 'function' => $functionName,
-                'definition' => $definition,
+                'definition' => (string) $trigger['definition'],
             ];
         }
 

@@ -94,7 +94,8 @@ final class MakeTrigger extends AbstractMaker
 
     public function generate(InputInterface $input, ConsoleStyle $io, Generator $generator): void
     {
-        $entityClassName = $input->getArgument('entity-class');
+        $entityClassName = $this->requireArg($input, 'entity-class');
+        $triggerName = $this->requireArg($input, 'trigger-name');
         $entityFqcn = $this->getEntityFqcn($entityClassName);
         /** @var ClassMetadata<object> $entityMetadata */
         $entityMetadata = $this->doctrineHelper->getMetadata($entityFqcn);
@@ -102,10 +103,10 @@ final class MakeTrigger extends AbstractMaker
 
         // Build the trigger parameters
         $functionName = $input->hasArgument('function-name') ? $input->getArgument('function-name') : null;
-        $scope = $input->hasArgument('scope') ? $input->getArgument('scope') : 'ROW';
+        $scope = $input->hasArgument('scope') ? ((string) ($input->getArgument('scope') ?? 'ROW')) : 'ROW';
 
         $allowedEvents = ['INSERT', 'UPDATE', 'DELETE'];
-        $events = array_unique(array_map('trim', explode(',', strtoupper($input->getArgument('on')))));
+        $events = array_unique(array_map('trim', explode(',', strtoupper($this->requireArg($input, 'on')))));
         foreach ($events as $event) {
             if (!in_array($event, $allowedEvents)) {
                 $allowedEventsString = implode(',', $allowedEvents);
@@ -114,21 +115,22 @@ final class MakeTrigger extends AbstractMaker
         }
 
         $allowedTimings = ['AFTER', 'BEFORE'];
-        $when = trim(strtoupper($input->getArgument('when')));
+        $whenRaw = $this->requireArg($input, 'when');
+        $when = trim(strtoupper($whenRaw));
         if (!in_array($when, $allowedTimings)) {
             $allowedTimingsString = implode(',', $allowedTimings);
-            throw new \InvalidArgumentException("{$input->getArgument('when')} is not a valid timing, should be one of : $allowedTimingsString");
+            throw new \InvalidArgumentException("{$whenRaw} is not a valid timing, should be one of : $allowedTimingsString");
         }
 
         $allowedStorages = [Storage::PHP_CLASSES->value, Storage::SQL_FILES->value];
-        $storage = trim($input->getArgument('storage'));
+        $storage = trim($this->requireArg($input, 'storage'));
         if (!in_array($storage, $allowedStorages)) {
             $allowedStoragesString = implode(',', $allowedStorages);
             throw new \InvalidArgumentException("{$storage} is not a valid storage, should be one of : $allowedStoragesString");
         }
 
         $resolvedTrigger = ResolvedTrigger::create(
-            name: $input->getArgument('trigger-name'),
+            name: $triggerName,
             table: $tableName,
             events: $events,
             when: $when,
@@ -151,6 +153,25 @@ final class MakeTrigger extends AbstractMaker
         $generator->writeChanges();
         $this->writeSuccessMessage($io);
         $io->text('Trigger files and entity mapping created successfully!');
+    }
+
+    /**
+     * Fetch a non-empty string argument or throw a clear error message.
+     * Replaces the previous code that silently passed `null` to `trim()` /
+     * `strtoupper()` — which raises a `TypeError` since PHP 8.1.
+     */
+    private function requireArg(InputInterface $input, string $name): string
+    {
+        $value = $input->hasArgument($name) ? $input->getArgument($name) : null;
+
+        if (null === $value || '' === $value) {
+            throw new \InvalidArgumentException(sprintf(
+                'The "%s" argument is required for `make:trigger`.',
+                $name,
+            ));
+        }
+
+        return (string) $value;
     }
 
     private function getEntityFqcn(string $shortOrFqcn): string

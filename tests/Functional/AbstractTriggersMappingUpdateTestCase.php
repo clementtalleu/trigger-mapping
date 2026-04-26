@@ -112,7 +112,8 @@ abstract class AbstractTriggersMappingUpdateTestCase extends KernelTestCase
 
         $contentAfter = file_get_contents((new \ReflectionClass(UpdateMappingTestEntity::class))->getFileName());
         self::assertSame($contentBefore, $contentAfter, 'Dry-run mode must not modify the entity file');
-        self::assertStringContainsString('To apply these changes', $tester->getDisplay());
+        // The dry-run message instructs users to re-run with --apply.
+        self::assertStringContainsString('--apply', $tester->getDisplay());
     }
 
     private function backupEntityFile(): void

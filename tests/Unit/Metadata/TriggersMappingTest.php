@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Talleu\TriggerMapping\Tests\Unit\Metadata;
 
-use Doctrine\Migrations\DependencyFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
@@ -127,14 +126,11 @@ final class TriggersMappingTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getMetadataFactory')->willReturn($factory);
 
-        $depFactory = $this->createMock(DependencyFactory::class);
-        $depFactory->method('getEntityManager')->willReturn($em);
-
         $storageResolver = $this->createMock(StorageResolverInterface::class);
         $storageResolver->method('getType')->willReturn('php');
         $triggerDefinitionFactory = new TriggerDefinitionFactory($storageResolver);
 
-        return new TriggersMapping($depFactory, $triggerDefinitionFactory);
+        return new TriggersMapping($em, $triggerDefinitionFactory);
     }
 
     /**

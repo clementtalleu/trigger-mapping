@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
+use Talleu\TriggerMapping\Command\TriggersSchemaShowCommand;
 use Talleu\TriggerMapping\Command\TriggersSchemaUpdateCommand;
 use Talleu\TriggerMapping\Command\TriggersSchemaValidateCommand;
 use Talleu\TriggerMapping\DatabaseSchema\TriggersDbExtractor;
@@ -27,13 +28,14 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set('trigger_mapping.metadata.triggers_mapping', TriggersMapping::class)
         ->args([
-            service('doctrine.migrations.dependency_factory'),
+            service('doctrine.orm.entity_manager'),
             service('trigger_mapping.factory.trigger_definition_factory'),
         ]);
 
     $services->set('trigger_mapping.database.triggers_db_extractor', TriggersDbExtractor::class)
         ->args([
-            service('doctrine.migrations.dependency_factory'),
+            service('doctrine.dbal.default_connection'),
+            service('doctrine.orm.entity_manager'),
             service('trigger_mapping.platform_resolver'),
             '%trigger_mapping.exclude%',
         ]);
@@ -56,6 +58,13 @@ return static function (ContainerConfigurator $container): void {
             '%trigger_mapping.storage.directory%',
             '%trigger_mapping.storage.namespace%',
         ]);
+
+    $services->set('trigger_mapping.command.schema_show', TriggersSchemaShowCommand::class)
+        ->args([
+            service('trigger_mapping.metadata.triggers_mapping'),
+            service('trigger_mapping.storage_resolver'),
+        ])
+        ->tag('console.command');
 
     $services->set('trigger_mapping.command.schema_update', TriggersSchemaUpdateCommand::class)
         ->args([

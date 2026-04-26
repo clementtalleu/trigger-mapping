@@ -7,6 +7,7 @@ use Symfony\Component\Console\Tester\CommandTester;
 use Talleu\TriggerMapping\Tests\Application\Entity\CorrectlyMappedEntity;
 use Talleu\TriggerMapping\Tests\Application\Entity\MissingInDbEntity;
 use Talleu\TriggerMapping\Tests\Application\Entity\NoTriggerEntity;
+use Talleu\TriggerMapping\Tests\Application\Entity\PostgresqlMultiEventsEntity;
 use Talleu\TriggerMapping\Tests\Application\Entity\TriggerBadParamsEntity;
 use Talleu\TriggerMapping\Tests\Functional\AbstractTriggerValidateSchemaTestCase;
 
@@ -156,6 +157,30 @@ final class TriggerSchemaValidateTest extends AbstractTriggerValidateSchemaTestC
         $this->assertTrue(str_contains($output, 'function'));
         $this->assertTrue(str_contains($output, 'correct_func'));
         $this->assertTrue(str_contains($output, 'wrong_func'));
+    }
+
+    public function testMultiEventsTriggerIsCorrectlyExtracted(): void
+    {
+        // Regression: this is the exact case the old text-based parser couldn't
+        // handle. With the bitfield-based extraction the three events are
+        // surfaced and validate must report the trigger as in sync.
+        $this->createSchemaForEntities([PostgresqlMultiEventsEntity::class]);
+
+        $this->executeSql(<<<'SQL'
+            CREATE OR REPLACE FUNCTION fn_multi_events() RETURNS trigger AS $$
+            BEGIN RETURN NEW; END;
+            $$ LANGUAGE plpgsql
+        SQL);
+        $this->executeSql(
+            'CREATE TRIGGER trg_multi_events BEFORE INSERT OR UPDATE OR DELETE '
+            .'ON postgresql_multi_events_entity FOR EACH ROW EXECUTE FUNCTION fn_multi_events()'
+        );
+
+        $command = $this->application->find('triggers:schema:validate');
+        $commandTester = new CommandTester($command);
+        $commandTester->execute(['--entity' => PostgresqlMultiEventsEntity::class]);
+        $commandTester->assertCommandIsSuccessful();
+        $this->assertStringContainsString('in sync with the mapping', $commandTester->getDisplay());
     }
 
     public function testTableWithoutEntity(): void

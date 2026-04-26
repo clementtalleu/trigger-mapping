@@ -175,3 +175,95 @@ jobs:
         env:
           DATABASE_URL: 'pdo-sqlsrv://sa:StrongPassw0rd@127.0.0.1:1433/test_db?serverVersion=2022&charset=UTF-8'
         run: vendor/bin/phpunit -c phpunit-sqlserver.xml.dist
+
+  legacy_doctrine_tests:
+    name: 'Legacy Doctrine (ORM ^2.16 + DBAL ^3)'
+    runs-on: ubuntu-latest
+    needs: unit_tests
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 'root_password'
+          MYSQL_DATABASE: 'test_db'
+          MYSQL_USER: 'test_user'
+          MYSQL_PASSWORD: 'test_password'
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: 'test_db'
+          POSTGRES_USER: 'test_user'
+          POSTGRES_PASSWORD: 'test_password'
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql, pdo_pgsql
+
+      - name: Constrain to ORM ^2.16 + DBAL ^3
+        run: |
+          composer require --no-update "doctrine/orm:^2.16" "doctrine/dbal:^3.0"
+          composer update --prefer-dist --no-progress --with-all-dependencies
+
+      - name: Run MySQL functional tests
+        env:
+          DATABASE_URL: 'mysql://root:root_password@127.0.0.1:3306/test_db?serverVersion=8.0'
+        run: vendor/bin/phpunit --testsuite=mysql
+
+      - name: Run PostgreSQL functional tests
+        env:
+          DATABASE_URL: 'postgresql://test_user:test_password@127.0.0.1:5432/test_db?serverVersion=15'
+        run: vendor/bin/phpunit -c phpunit-postgresql.xml.dist
+
+  no_migrations_bundle_tests:
+    name: 'Without doctrine-migrations-bundle (optional dep)'
+    runs-on: ubuntu-latest
+    needs: unit_tests
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: 'root_password'
+          MYSQL_DATABASE: 'test_db'
+          MYSQL_USER: 'test_user'
+          MYSQL_PASSWORD: 'test_password'
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-progress
+
+      - name: Remove doctrine-migrations-bundle to verify the bundle still works without it
+        run: composer remove --dev --update-with-all-dependencies doctrine/doctrine-migrations-bundle
+
+      - name: Run MySQL functional tests (without migrations-bundle)
+        env:
+          DATABASE_URL: 'mysql://root:root_password@127.0.0.1:3306/test_db?serverVersion=8.0'
+        run: vendor/bin/phpunit --testsuite=mysql --testsuite=unit

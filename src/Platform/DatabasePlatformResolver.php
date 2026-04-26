@@ -41,11 +41,17 @@ final readonly class DatabasePlatformResolver implements DatabasePlatformResolve
             return 'mysql';
         }
 
+        if ($this->isPostgreSQL()) {
+            return 'postgresql';
+        }
+
         if ($this->isSQLServer()) {
             return 'sqlsrv';
         }
 
-        return 'postgresql';
+        // Unknown platform — return the FQCN so error messages remain truthful
+        // instead of silently labelling everything else as "postgresql".
+        return $this->getPlatform()::class;
     }
 
     private function getPlatform(): AbstractPlatform
