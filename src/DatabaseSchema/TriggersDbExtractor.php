@@ -275,6 +275,20 @@ final readonly class TriggersDbExtractor implements TriggersDbExtractorInterface
     private const PG_TGTYPE_TRUNCATE = 1 << 5;   // 32
     private const PG_TGTYPE_INSTEAD = 1 << 6;    // 64
 
+    /**
+     * @param array<int, array<string, mixed>> $rawTriggers
+     *
+     * @return array<string, array{
+     *     name: string,
+     *     table: string,
+     *     events: string[],
+     *     when: string,
+     *     scope: string,
+     *     content: string,
+     *     function: ?string,
+     *     definition: ?string,
+     * }>
+     */
     private function normalizePostgresqlTriggers(array $rawTriggers): array
     {
         $normalized = [];

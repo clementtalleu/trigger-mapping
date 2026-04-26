@@ -341,9 +341,17 @@ final class TriggerCreator implements TriggerCreatorInterface
      */
     private function createMigrationFile(array $upPhpCode, array $downPhpCode, ?StyleInterface $io = null): void
     {
-        $migrationGenerator = $this->dependencyFactory->getMigrationGenerator();
+        // Re-assign to a local so static analysers can narrow the type.
+        // The caller (`createMigration`) already returns early when the dependency
+        // factory is null, but that flow isn't visible from here.
+        $depFactory = $this->dependencyFactory;
+        if (null === $depFactory) {
+            return;
+        }
 
-        $configuration = $this->dependencyFactory->getConfiguration();
+        $migrationGenerator = $depFactory->getMigrationGenerator();
+
+        $configuration = $depFactory->getConfiguration();
         $dirs = $configuration->getMigrationDirectories();
 
         if (count($dirs) === 1) {
@@ -355,7 +363,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         $up = implode("\n", $upPhpCode);
         $down = implode("\n", $downPhpCode);
 
-        $className = $this->dependencyFactory->getClassNameGenerator()->generateClassName($namespace);
+        $className = $depFactory->getClassNameGenerator()->generateClassName($namespace);
         $path = $migrationGenerator->generateMigration($className, $up, $down);
 
         if ($io) {
