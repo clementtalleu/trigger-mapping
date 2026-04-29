@@ -263,7 +263,10 @@ jobs:
       - name: Remove doctrine-migrations-bundle to verify the bundle still works without it
         run: composer remove --dev --update-with-all-dependencies doctrine/doctrine-migrations-bundle
 
+      - name: Run unit tests (without migrations-bundle)
+        run: vendor/bin/phpunit --testsuite=unit
+
       - name: Run MySQL functional tests (without migrations-bundle)
         env:
           DATABASE_URL: 'mysql://root:root_password@127.0.0.1:3306/test_db?serverVersion=8.0'
-        run: vendor/bin/phpunit --testsuite=mysql --testsuite=unit
+        run: vendor/bin/phpunit --testsuite=mysql
