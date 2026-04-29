@@ -45,20 +45,18 @@ final class DatabasePlatformResolverTest extends TestCase
     }
 
     /**
-     * Pinning current behaviour: any unknown platform is reported as PostgreSQL.
-     *
-     * This is a known bug (the resolver should return null or the FQCN). It is captured
-     * here so any future fix is forced to update this test, ensuring the change is
-     * intentional. See audit finding F-14.
+     * Audit finding F-14 fix: an unknown platform must be reported by its FQCN
+     * (truthful) instead of being silently labelled as "postgresql".
      */
-    public function testUnknownPlatformIsCurrentlyReportedAsPostgreSQL(): void
+    public function testUnknownPlatformReturnsItsFqcn(): void
     {
-        $resolver = $this->resolverWithPlatform($this->createMock(AbstractPlatform::class));
+        $platform = $this->createMock(AbstractPlatform::class);
+        $resolver = $this->resolverWithPlatform($platform);
 
         self::assertFalse($resolver->isMySQL());
         self::assertFalse($resolver->isPostgreSQL());
         self::assertFalse($resolver->isSQLServer());
-        self::assertSame('postgresql', $resolver->getPlatformName());
+        self::assertSame($platform::class, $resolver->getPlatformName());
     }
 
     private function resolverWithPlatform(AbstractPlatform $platform): DatabasePlatformResolver

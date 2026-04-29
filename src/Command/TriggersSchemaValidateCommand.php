@@ -140,17 +140,21 @@ final class TriggersSchemaValidateCommand extends Command
 
             $mapping = $triggersMapping[$triggerName];
 
-            if ($mapping->table !== $triggerData['table'] && $mapping->onTable !== $triggerData['table']) {
+            // Identifiers are compared case-insensitively because PostgreSQL silently
+            // lowercases unquoted identifiers (so "FnAudit" in the attribute becomes
+            // "fnaudit" in pg_proc.proname). Reporting that as a mismatch would be a
+            // false positive.
+            if (!$this->identifiersMatch($mapping->table, $triggerData['table'])
+                && !$this->identifiersMatch($mapping->onTable, $triggerData['table'])
+            ) {
                 $mismatch[$triggerName]['table'] = [
                     'expected' => $mapping->table,
                     'actual' => $triggerData['table'],
                 ];
             }
 
-            $mappingEvents = $mapping->events;
-            $triggerEvents = $triggerData['events'];
-            $lowerMappingEvents = array_map('strtolower', $mappingEvents);
-            $lowerTriggerEvents = array_map('strtolower', $triggerEvents);
+            $lowerMappingEvents = array_map('strtolower', $mapping->events);
+            $lowerTriggerEvents = array_map('strtolower', $triggerData['events']);
             sort($lowerMappingEvents);
             sort($lowerTriggerEvents);
             if ($lowerMappingEvents !== $lowerTriggerEvents) {
@@ -160,21 +164,21 @@ final class TriggersSchemaValidateCommand extends Command
                 ];
             }
 
-            if ($mapping->when !== $triggerData['when']) {
+            if (0 !== strcasecmp($mapping->when, (string) $triggerData['when'])) {
                 $mismatch[$triggerName]['when'] = [
                     'expected' => $mapping->when,
                     'actual' => $triggerData['when'],
                 ];
             }
 
-            if ($mapping->scope !== $triggerData['scope']) {
+            if (0 !== strcasecmp($mapping->scope, (string) $triggerData['scope'])) {
                 $mismatch[$triggerName]['scope'] = [
                     'expected' => $mapping->scope,
                     'actual' => $triggerData['scope'],
                 ];
             }
 
-            if ($mapping->function !== $triggerData['function']) {
+            if (!$this->identifiersMatch($mapping->function, $triggerData['function'])) {
                 $mismatch[$triggerName]['function'] = [
                     'expected' => $mapping->function,
                     'actual' => $triggerData['function'],
@@ -183,6 +187,23 @@ final class TriggersSchemaValidateCommand extends Command
         }
 
         return $mismatch;
+    }
+
+    /**
+     * Two identifiers match if both are null, or if they are equal once normalised
+     * to lowercase. Used to neutralise PostgreSQL's implicit lowercasing of unquoted
+     * identifiers when validating against the mapping.
+     */
+    private function identifiersMatch(?string $a, ?string $b): bool
+    {
+        if (null === $a && null === $b) {
+            return true;
+        }
+        if (null === $a || null === $b) {
+            return false;
+        }
+
+        return 0 === strcasecmp($a, $b);
     }
 
     /**

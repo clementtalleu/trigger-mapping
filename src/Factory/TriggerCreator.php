@@ -27,7 +27,10 @@ final class TriggerCreator implements TriggerCreatorInterface
         private Generator                         $generator,
         private StorageResolverInterface          $storageResolver,
         private DatabasePlatformResolverInterface $databasePlatformResolver,
-        private DependencyFactory                 $dependencyFactory,
+        // doctrine/doctrine-migrations-bundle is an optional dependency: if it is not
+        // installed in the project, the DI extension passes null here and migration
+        // generation is silently skipped.
+        private ?DependencyFactory                $dependencyFactory,
         private bool                              $migrations,
     ) {
     }
@@ -39,6 +42,7 @@ final class TriggerCreator implements TriggerCreatorInterface
     {
         $triggersForMigrationsPHP = [];
         $triggersForMigrationsSQL = [];
+        $triggersClassesDetails = [];
 
         foreach ($resolvedTriggers as $resolvedTrigger) {
             if ($resolvedTrigger->storage === Storage::PHP_CLASSES->value) {
@@ -58,7 +62,7 @@ final class TriggerCreator implements TriggerCreatorInterface
             $this->createMigration($triggersForMigrationsPHP, $triggersForMigrationsSQL, $io);
         }
 
-        return $triggersClassesDetails ?? [];
+        return $triggersClassesDetails;
     }
 
     private function createTriggerClass(ResolvedTrigger $resolvedTrigger): ClassNameDetails
@@ -66,10 +70,10 @@ final class TriggerCreator implements TriggerCreatorInterface
         $className = Str::asClassName($resolvedTrigger->name);
         $namespace = $this->storageResolver->getResolvedNamespace();
 
-        // The createClassNameDetails says "but *without* the "App\\" part"
-        if (str_starts_with($namespace, 'App\\')) {
-            $namespace = str_replace('App\\', '', $namespace);
-        }
+        // MakerBundle's createClassNameDetails expects the namespace WITHOUT the
+        // leading "App\" prefix. We strip it ONLY at the start so a configured
+        // namespace like "Acme\App\Triggers" doesn't get mangled in the middle.
+        $namespace = preg_replace('/^App\\\\/', '', $namespace) ?? $namespace;
 
         $triggerClassNameDetails = $this->generator->createClassNameDetails($className, $namespace);
 
@@ -224,7 +228,7 @@ final class TriggerCreator implements TriggerCreatorInterface
      */
     private function createMigration(array $triggersForMigrationsPHP, array $triggersForMigrationsSQL, ?StyleInterface $io = null): void
     {
-        if (!class_exists('Doctrine\Migrations\DependencyFactory')) {
+        if (null === $this->dependencyFactory) {
             if ($io) {
                 $io->warning([
                     'Migration generation is enabled, but "doctrine/doctrine-migrations-bundle" is not installed.',
@@ -337,9 +341,17 @@ final class TriggerCreator implements TriggerCreatorInterface
      */
     private function createMigrationFile(array $upPhpCode, array $downPhpCode, ?StyleInterface $io = null): void
     {
-        $migrationGenerator = $this->dependencyFactory->getMigrationGenerator();
+        // Re-assign to a local so static analysers can narrow the type.
+        // The caller (`createMigration`) already returns early when the dependency
+        // factory is null, but that flow isn't visible from here.
+        $depFactory = $this->dependencyFactory;
+        if (null === $depFactory) {
+            return;
+        }
 
-        $configuration = $this->dependencyFactory->getConfiguration();
+        $migrationGenerator = $depFactory->getMigrationGenerator();
+
+        $configuration = $depFactory->getConfiguration();
         $dirs = $configuration->getMigrationDirectories();
 
         if (count($dirs) === 1) {
@@ -351,7 +363,7 @@ final class TriggerCreator implements TriggerCreatorInterface
         $up = implode("\n", $upPhpCode);
         $down = implode("\n", $downPhpCode);
 
-        $className = $this->dependencyFactory->getClassNameGenerator()->generateClassName($namespace);
+        $className = $depFactory->getClassNameGenerator()->generateClassName($namespace);
         $path = $migrationGenerator->generateMigration($className, $up, $down);
 
         if ($io) {

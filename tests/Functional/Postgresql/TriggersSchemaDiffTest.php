@@ -36,6 +36,28 @@ final class TriggersSchemaDiffTest extends AbstractTriggersSchemaDiffTestCase
         self::assertFileExists($this->triggersDir.'/functions/fn_sql_diff_test.sql');
     }
 
+    public function testSchemaShowOutputsTriggerSourceForMappedEntity(): void
+    {
+        // `triggers:schema:show` prints the resolved SQL of each mapped trigger
+        // without touching the database. We exercise the same fixture as
+        // `schema:diff` (storage = sql with a function) so we can assert that
+        // the output mentions our trigger and the filesystem locations.
+        $this->createSchemaForEntities([PostgresqlSqlDiffEntity::class]);
+
+        // Generate the SQL files first so schema:show has something to read.
+        $this->runDiff(['--entity' => PostgresqlSqlDiffEntity::class, '--apply' => true]);
+
+        $command = $this->application->find('triggers:schema:show');
+        $tester = new CommandTester($command);
+        $tester->execute(['--entity' => PostgresqlSqlDiffEntity::class]);
+        $tester->assertCommandIsSuccessful();
+
+        $output = $tester->getDisplay();
+        self::assertStringContainsString('trg_sql_diff_test', $output);
+        self::assertStringContainsString('-- Trigger', $output);
+        self::assertStringContainsString('1 trigger(s) shown', $output);
+    }
+
     public function testNothingToDoWhenTriggerExistsInDb(): void
     {
         $this->createSchemaForEntities([PostgresqlSqlDiffEntity::class]);

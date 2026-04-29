@@ -83,6 +83,8 @@ final class TriggersMappingUpdateCommand extends Command
         }
 
         $io->section('The following trigger mappings can be created:');
+        $processed = 0;
+        $skipped = 0;
         /** @var string $missingTriggerKey */
         foreach ($missingTriggersMapping as $missingTriggerKey) {
             $dbTriggerMissing = $dbTriggers[$missingTriggerKey];
@@ -102,6 +104,7 @@ final class TriggersMappingUpdateCommand extends Command
                     $dbTriggerMissing['table'],
                     $dbTriggerMissing['name']
                 ));
+                ++$skipped;
                 continue;
             }
 
@@ -138,13 +141,22 @@ final class TriggersMappingUpdateCommand extends Command
                     onTable: $onTable
                 );
             }
+            ++$processed;
         }
 
         if ($isApplyMode) {
-            $io->success('Mapping update process finished successfully.');
+            $io->success(sprintf(
+                'Mapping update process finished successfully. %d trigger(s) mapped, %d skipped.',
+                $processed,
+                $skipped,
+            ));
         } else {
             $io->newLine();
-            $io->info('To apply these changes, re-run the command with the --apply option.');
+            $io->info(sprintf(
+                '%d trigger(s) would be mapped, %d skipped. Re-run with --apply to write the changes.',
+                $processed,
+                $skipped,
+            ));
         }
 
         return Command::SUCCESS;

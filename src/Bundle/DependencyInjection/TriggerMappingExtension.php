@@ -41,13 +41,10 @@ final class TriggerMappingExtension extends Extension
         $container->setParameter('trigger_mapping.migrations', $config['migrations']);
         $container->setParameter('trigger_mapping.storage.namespace', $config['storage']['namespace']);
 
-        // Exclude triggers from mapping or validation
-        $excludes = $config['excludes'];
-        if (!is_array($excludes)) {
-            throw new \InvalidArgumentException('Excludes node should be an array');
-        }
-
-        $container->setParameter('trigger_mapping.exclude', $excludes);
+        // Exclude triggers from mapping or validation. The Configuration tree
+        // already enforces this is an array (scalarPrototype) so no extra
+        // runtime check is needed.
+        $container->setParameter('trigger_mapping.exclude', $config['excludes']);
     }
 
     public function getAlias(): string

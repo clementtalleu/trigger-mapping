@@ -10,13 +10,6 @@ use Talleu\TriggerMapping\Bundle\DependencyInjection\TriggerMappingExtension;
 
 final class TriggerMappingBundle extends Bundle
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function boot(): void
-    {
-    }
-
     public function getContainerExtension(): ?ExtensionInterface
     {
         if (!$this->extension) {
